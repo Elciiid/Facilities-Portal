@@ -1,0 +1,68 @@
+[
+    {
+        "id": "return_to_work",
+        "title": "Return to Work",
+        "folder": "",
+        "description": "Medical clearances and health status reporting.",
+        "icon": "fa-heart-pulse",
+        "color": "pink",
+        "link": "..\/return-to-work-final\/auth\/login.php",
+        "enabled": true,
+        "order": 1
+    },
+    {
+        "id": "disposal_form",
+        "title": "Disposal Form",
+        "folder": "",
+        "description": "Asset and equipment decommissioning requests.",
+        "icon": "fa-dumpster",
+        "color": "rose",
+        "link": "..\/Disposal-Form\/login.php",
+        "enabled": true,
+        "order": 2
+    },
+    {
+        "id": "gmp_checklist",
+        "title": "GMP Checklist",
+        "folder": "",
+        "description": "Quality assurance and hygiene compliance audit.",
+        "icon": "fa-list-check",
+        "color": "indigo",
+        "link": "..\/gmp_checklist\/login.php",
+        "enabled": true,
+        "order": 3
+    },
+    {
+        "id": "uniform_inspection",
+        "title": "Uniform Inspection",
+        "description": "Personal hygiene and uniform quality tracking.",
+        "icon": "fa-shirt",
+        "color": "blue",
+        "link": "..\/uniform\/login.php",
+        "enabled": true,
+        "order": 4,
+        "folder": ""
+    },
+    {
+        "id": "item_request",
+        "title": "Item Request",
+        "description": "Requisition for supplies and facility materials.",
+        "icon": "fa-dolly",
+        "color": "amber",
+        "link": "..\/item-request\/auth\/login.php",
+        "enabled": true,
+        "order": 5,
+        "folder": ""
+    },
+    {
+        "id": "app_1768784501656_j2jnqzttt",
+        "title": "GMP Scanner",
+        "description": "Scan location QR codes to access individual GMP checklist on your mobile device",
+        "icon": "fa-eye",
+        "color": "pink",
+        "link": "..\/gmp_checklist\/pages\/mbl_scan.php",
+        "enabled": true,
+        "order": 6,
+        "folder": ""
+    }
+]

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Documentation | System Reference</title>
+    <!-- Include TailwindCSS for aesthetics -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/9.3.0/mermaid.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #f8fafc;
+            color: #334155;
+        }
+
+        .sidebar {
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 260px;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            overflow-y: auto;
+            padding: 2rem 1.5rem;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            padding: 3rem 4rem;
+            overflow-y: auto;
+        }
+
+        .code-title {
+            background: #334155;
+            color: white;
+            padding: 0.5rem 1rem;
+            font-family: monospace;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+        }
+
+        .prose h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 1rem;
+        }
+
+        .prose h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-top: 2.5rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+
+        .prose h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #334155;
+            margin-top: 1.5rem;
+        }
+
+        .prose p {
+            margin-top: 1rem;
+            line-height: 1.6;
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 1.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        th {
+            background: #f1f5f9;
+            text-align: left;
+            padding: 1rem;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        td {
+            padding: 1rem;
+            border-top: 1px solid #e2e8f0;
+            color: #64748b;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 0.5rem 0;
+            color: #64748b;
+            transition: color 0.2s;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            color: #ec4899;
+        }
+
+        /* Style for code blocks */
+        pre {
+            background-color: #f8fafc !important;
+            color: #000000 !important;
+            border-radius: 0.5rem !important;
+            border: 1px solid #e2e8f0 !important;
+            padding: 1.5rem !important;
+            margin-top: 0 !important;
+            overflow-x: auto !important;
+            font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace !important;
+            font-size: 0.9rem !important;
+        }
+
+        code {
+            color: #000000 !important;
+            font-family: inherit !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar">
+        <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <span class="w-2 h-8 bg-pink-500 rounded-full block"></span> DEV DOCS
+        </h2>
+        <nav class="space-y-2">
+            <a href="#overview" class="nav-link">1. Overview</a>
+            <a href="#arch" class="nav-link">2. Architecture & Process Flow</a>
+            <a href="#db" class="nav-link">3. Table Specs (JSON Schema)</a>
+            <a href="#code" class="nav-link">4. Code Snippets Reference</a>
+            <a href="#api" class="nav-link">5. API Documentation</a>
+        </nav>
+    </div>
+
+    <div class="main-content prose max-w-none">
+        <div class="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-8 text-white shadow-xl mb-12">
+            <h1 class="text-white border-0 mt-0 mb-2">Portal Developer Protocol</h1>
+            <p class="text-pink-100 text-lg m-0">In-depth technical overview, diagrams, and codebase references.</p>
+        </div>
+
+        <section id="overview">
+            <h2>1. Overview</h2>
+            <p>
+                The La Rose Noire Facilities Portal is a lightweight, high-performance web dashboard operating strictly
+                on native HTML5,
+                Vanilla Javascript, Tailwind CSS (for aesthetics), and raw PHP serving as the backend layer.
+            </p>
+            <p>
+                A core philosophy of this portal is <strong>No-SQL operation</strong>. The architecture fundamentally
+                diverges from traditional
+                MySQL implementations and leverages flattened JSON arrays stored safely in a local <code>/data</code>
+                directory to facilitate configurations.
+            </p>
+        </section>
+
+        <section id="arch">
+            <h2>2. Architecture & Process Flow Diagrams</h2>
+            <p>The following process flow highlights the integration between the Dashboard runtime and the backend PHP
+                utilities managing the JSON state representation.</p>
+
+            <div class="my-8 flex justify-center bg-white p-6 rounded-xl border border-slate-200">
+                <div class="mermaid">
+                    sequenceDiagram
+                    autonumber
+                    participant Client as User Portal (portal.php)
+                    participant Admin as Admin Panel (admin.php)
+                    participant API as PHP API (save_app.php)
+                    participant JSON as Server Data (apps.json)
+
+                    %% Admin flow
+                    Admin->>API: POST /api/save_app.php (JSON Data)
+                    activate API
+                    API->>JSON: Read current data
+                    JSON-->>API: Return array configuration
+                    API->>API: Process input / Update / Replace state
+                    API->>JSON: file_put_contents (Updated state)
+                    API-->>Admin: Response: {"success": true}
+                    deactivate API
+
+                    %% User flow
+                    Client->>Client: Load portal.php
+                    Client->>JSON: fetch('data/apps.json')
+                    JSON-->>Client: Returns JSON Array
+                    Client->>Client: Parse Apps & Render Dynamic Grid (VanillaJS/DOM)
+                </div>
+            </div>
+
+            <script>
+                mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { primaryColor: '#fce7f3', lineColor: '#ec4899', textColor: '#334155' } });
+            </script>
+        </section>
+
+        <section id="db">
+            <h2>3. Table Specifications (File-based schema)</h2>
+            <p>Because the app implements a Flat-File JSON database logic, the definitions are serialized to `.json`
+                files representing respective tables.</p>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data File (Table)</th>
+                            <th>Property Map</th>
+                            <th>Data Type</th>
+                            <th>Details & Constraints</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td rowspan="9" class="font-semibold align-top text-slate-800 bg-slate-50 border-r">
+                                apps.json<br /><span class="text-xs font-normal text-slate-400">Applications
+                                    Inventory</span></td>
+                            <td><code>id</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">String</span>
+                            </td>
+                            <td>Primary key (Generated sequentially or random hash eg. <code>app_1768...</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><code>title</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">String</span>
+                            </td>
+                            <td>Display name on the card</td>
+                        </tr>
+                        <tr>
+                            <td><code>folder</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">String</span>
+                            </td>
+                            <td>Foreign Key reference pointing to folder collection (Optional)</td>
+                        </tr>
+                        <tr>
+                            <td><code>description</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">String</span>
+                            </td>
+                            <td>Sub-text below the title in dashboard grid</td>
+                        </tr>
+                        <tr>
+                            <td><code>icon</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">String</span>
+                            </td>
+                            <td>FontAwesome class reference (e.g., <code>fa-heart-pulse</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><code>color</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">String</span>
+                            </td>
+                            <td>Theme attribute mapping to tailwind config (eg. <code>pink, rose</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><code>link</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">String</span>
+                            </td>
+                            <td>URL endpoint routing (absolute or relative)</td>
+                        </tr>
+                        <tr>
+                            <td><code>enabled</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-mono">Boolean</span>
+                            </td>
+                            <td>Master switch for displaying/hiding in production UI</td>
+                        </tr>
+                        <tr>
+                            <td><code>order</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-mono">Integer</span>
+                            </td>
+                            <td>Ascending index integer mapping grid position</td>
+                        </tr>
+
+                        <!-- Left Panel Announcement -->
+                        <tr>
+                            <td rowspan="6"
+                                class="font-semibold align-top text-slate-800 bg-slate-50 border-r border-t">
+                                left_panel.json<br /><span class="text-xs font-normal text-slate-400">Sidebar config +
+                                    Elements</span></td>
+                            <td class="border-t"><code>weather_enabled</code></td>
+                            <td class="border-t"><span
+                                    class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-mono">Boolean</span>
+                            </td>
+                            <td class="border-t">Root attribute for widget toggles</td>
+                        </tr>
+                        <tr>
+                            <td><code>background_enabled</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-mono">Boolean</span>
+                            </td>
+                            <td>Toggle Three.js animation canvas</td>
+                        </tr>
+                        <tr>
+                            <td><code>announcements(arr)[].id</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">String</span>
+                            </td>
+                            <td>Key defining individual announcements</td>
+                        </tr>
+                        <tr>
+                            <td><code>announcements(arr)[].type</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">String</span>
+                            </td>
+                            <td>Value <code>image</code> or <code>text</code> defines component structure</td>
+                        </tr>
+                        <tr>
+                            <td><code>announcements(arr)[].image</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">String</span>
+                            </td>
+                            <td>Asset Path relative context. e.g. <code>assets/year-end.png</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>announcements(arr)[].enabled</code></td>
+                            <td><span
+                                    class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-mono">Boolean</span>
+                            </td>
+                            <td>Condition flag</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="code">
+            <h2>4. Code Snippets Reference</h2>
+            <p>The backend heavily depends on clean PHP read/writes for REST-like state management. Below represents the
+                universal app writing method inside <code>save_app.php</code>.</p>
+
+            <div class="code-title flex items-center gap-2"><svg class="w-4 h-4 text-pink-400" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                </svg> api/save_app.php (Excerpts)</div>
+            <pre><code class="language-php">&lt;?php
+header('Content-Type: application/json');
+
+// Disable display of errors to prevent JSON corruption
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
+// Decode input payload expecting explicit JS Object -> JSON mapping
+$input = json_decode(file_get_contents('php://input'), true);
+
+try {
+    // 1. Load current apps data
+    $apps = json_decode(file_get_contents('../data/apps.json'), true);
+    if (!$apps) $apps = [];
+
+    // 2. Identify toggle operation constraints
+    $isToggle = isset($input['isToggle']) && $input['isToggle'];
+
+    // 3. Scan dictionary registry or index insertion points
+    // Find highest order execution algorithm snippet:
+    $order = isset($input['order']) && $input['order'] !== '' ? (int) $input['order'] : null;
+    if ($order === null || $foundIndex < 0) {
+        $maxOrder = 0;
+        foreach ($apps as $app) if ($app['order'] > $maxOrder) $maxOrder = $app['order'];
+        $order = $maxOrder + 1;
+    }
+
+    // 4. Update memory & sync physical file
+    usort($apps, function ($a, $b) { return $a['order'] <=> $b['order']; });
+    file_put_contents('../data/apps.json', json_encode($apps, JSON_PRETTY_PRINT));
+
+    echo json_encode(['success' => true, 'message' => 'App saved successfully']);
+} catch (Exception $e) {
+    echo json_encode(['error' => 'Server error']);
+}
+?&gt;</code></pre>
+
+            <p class="mt-8">On the frontend, the dynamic responsive interface handles fetching without reloading
+                leveraging Fetch promises.</p>
+            <div class="code-title flex items-center gap-2"><svg class="w-4 h-4 text-emerald-400" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                </svg> portal.php - DOM Load (Excerpts)</div>
+            <pre><code class="language-javascript">async function loadApps() {
+    try {
+        const [appsRes, foldersRes] = await Promise.all([
+            fetch('data/apps.json?t=' + new Date().getTime()),
+            fetch('data/folders.json?t=' + new Date().getTime())
+        ]);
+        
+        allApps = await appsRes.json();
+        const folders = await foldersRes.json();
+
+        // Execution of tailwind layouts mapped dynamically
+        renderGrid(allApps, folders);
+    } catch(err) {
+        console.error("Portal Exception: Data tree failing to map layout", err);
+    }
+}
+</code></pre>
+        </section>
+
+        <section id="api">
+            <h2>5. API Endpoint Documentation</h2>
+            <p>Every PHP endpoint enforces strict <code>POST</code> methodology payload validations and responds with
+                <code>Content-Type: application/json</code>.
+            </p>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Endpoint Route</th>
+                            <th>Description</th>
+                            <th>Payload Structure</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-mono">POST</span>
+                                /api/save_app.php</td>
+                            <td>Add/Update Dashboard Cards</td>
+                            <td><code
+                                    class="text-xs text-pink-600">{id, title, folder, description, icon, color, link, enabled, order, isToggle?}</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-mono">POST</span>
+                                /api/delete_app.php</td>
+                            <td>Removes object from grid permanently</td>
+                            <td><code class="text-xs text-pink-600">{id: "string"}</code></td>
+                        </tr>
+                        <tr>
+                            <td><span
+                                    class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-mono">POST</span>
+                                /api/upload_announcement.php</td>
+                            <td>Form-data handler for binary file injections</td>
+                            <td><code class="text-xs text-pink-600">FormData(image: File, type, title, subtitle)</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span
+                                    class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-mono">POST</span>
+                                /api/save_weather.php</td>
+                            <td>Global configuration updates (weather/animations)</td>
+                            <td><code
+                                    class="text-xs text-pink-600">{weather_enabled: Boolean, background_enabled: Boolean}</code>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+        <div class="mt-16 text-center text-sm text-slate-400 border-t border-slate-200 pt-8">
+            &copy; 2026 La Rose Noire Facilities. System Architecture Log.
+        </div>
+    </div>
+
+</body>
+
+</html>

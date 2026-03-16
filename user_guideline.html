@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Manual | Facilities Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #f1f5f9;
+            color: #334155;
+            scroll-behavior: smooth;
+        }
+
+        .scroll-mt {
+            scroll-margin-top: 2rem;
+        }
+
+        .nav-link {
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: #ec4899;
+            padding-left: 0.5rem;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+        }
+
+        h2 {
+            font-weight: 800;
+            color: #0f172a;
+            border-left: 4px solid #ec4899;
+            padding-left: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        h3 {
+            font-weight: 700;
+            color: #1e293b;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .icon-box {
+            width: 2.5rem;
+            height: 2.5rem;
+            background: #fdf2f8;
+            color: #ec4899;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.75rem;
+        }
+
+        ul li {
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        ul li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: #ec4899;
+            font-weight: bold;
+        }
+
+        .sidebar-sticky {
+            position: sticky;
+            top: 2rem;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body class="antialiased">
+
+    <div class="max-w-7xl mx-auto px-4 py-8 md:py-12">
+        <div class="flex flex-col lg:flex-row gap-12">
+
+            <!-- Sidebar Navigation -->
+            <aside class="w-full lg:w-1/4">
+                <div class="sidebar-sticky">
+                    <div class="mb-8">
+                        <img src="assets/logo.jpg" alt="Logo" class="w-16 h-16 mb-4 shadow-lg rounded-xl">
+                        <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">User Manual</h1>
+                        <p class="text-sm text-pink-600 font-bold uppercase tracking-wider">Facilities Portal</p>
+                    </div>
+
+                    <nav class="space-y-1">
+                        <a href="#intro"
+                            class="nav-link block py-2 text-sm font-semibold text-slate-600 border-b border-slate-100">1.
+                            Introduction</a>
+                        <a href="#user-portal"
+                            class="nav-link block py-2 text-sm font-semibold text-slate-600 border-b border-slate-100">2.
+                            User Portal Guide</a>
+                        <div class="pl-4 space-y-1 mt-1">
+                            <a href="#dashboard" class="nav-link block py-1 text-xs text-slate-500">2.1 Dashboard
+                                Overview</a>
+                            <a href="#sidebar" class="nav-link block py-1 text-xs text-slate-500">2.2 Sidebar
+                                Features</a>
+                        </div>
+                        <a href="#admin-panel"
+                            class="nav-link block py-2 text-sm font-semibold text-slate-600 border-b border-slate-100 mt-4">3.
+                            Admin Panel Guide</a>
+                        <div class="pl-4 space-y-1 mt-1">
+                            <a href="#admin-access" class="nav-link block py-1 text-xs text-slate-500">3.1 Accessing the
+                                Admin Panel</a>
+                            <a href="#admin-announcements" class="nav-link block py-1 text-xs text-slate-500">3.2
+                                Managing Announcements</a>
+                            <a href="#admin-left-panel" class="nav-link block py-1 text-xs text-slate-500">3.3 Managing
+                                Left Panel</a>
+                            <a href="#admin-apps" class="nav-link block py-1 text-xs text-slate-500">3.4 Managing
+                                Apps</a>
+                            <a href="#admin-folders" class="nav-link block py-1 text-xs text-slate-500">3.5 Managing
+                                Folders</a>
+                        </div>
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="w-full lg:w-3/4">
+
+                <!-- Header section -->
+                <div
+                    class="bg-gradient-to-r from-pink-500 to-rose-600 rounded-3xl p-8 md:p-12 text-white shadow-2xl mb-12 relative overflow-hidden">
+                    <div class="relative z-10">
+                        <h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tighter">Welcome to the Facilities
+                            Portal</h1>
+                        <p class="text-pink-100 text-lg md:text-xl max-w-2xl font-medium">Your centralized hub for all
+                            facility management tools, compliance reporting, and announcements.</p>
+                    </div>
+                    <!-- Abstract blobs -->
+                    <div class="absolute -right-20 -top-20 w-80 h-80 bg-white opacity-10 rounded-full blur-3xl"></div>
+                    <div class="absolute -left-20 -bottom-20 w-80 h-80 bg-pink-400 opacity-20 rounded-full blur-3xl">
+                    </div>
+                </div>
+
+                <!-- Introduction -->
+                <section id="intro" class="scroll-mt">
+                    <div class="section-card">
+                        <h2 class="text-2xl">1. Introduction</h2>
+                        <p class="text-slate-600 leading-relaxed italic">
+                            The La Rose Noire Facilities Portal is designed to streamline day-to-day operations and
+                            provide quick access to essential tools. Whether you're an employee looking for reporting
+                            apps or an administrator managing content, this guide covers everything you need to know.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- User Portal Guide -->
+                <section id="user-portal" class="scroll-mt">
+                    <div class="section-card">
+                        <h2 class="text-2xl">2. User Portal Guide</h2>
+
+                        <div id="dashboard" class="scroll-mt">
+                            <div class="flex items-center mb-4">
+                                <div class="icon-box"><i class="fa-solid fa-table-cells-large"></i></div>
+                                <h3 class="text-xl m-0">2.1 Dashboard Overview</h3>
+                            </div>
+                            <p class="mb-4">The main portal dashboard provides a high-level view of available tools.</p>
+                            <ul class="space-y-4">
+                                <li><strong>Main Grid</strong>: Displays applications as interactive cards. Each card
+                                    contains the app name, icon, theme color, and a brief description.</li>
+                                <li><strong>Folders</strong>: To maintain organization, related apps are grouped into
+                                    folders. Clicking a folder opens an overlay displaying its contents.</li>
+                                <li><strong>Announcements Banner</strong>: Critical alerts or welcome messages appear in
+                                    a sliding banner at the top. These can be dismissed using the "X" button once read.
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div id="sidebar" class="scroll-mt mt-10">
+                            <div class="flex items-center mb-4">
+                                <div class="icon-box"><i class="fa-solid fa-columns"></i></div>
+                                <h3 class="text-xl m-0">2.2 Sidebar Features</h3>
+                            </div>
+                            <div class="grid md:grid-cols-2 gap-8 mt-6">
+                                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                    <h4 class="font-bold text-slate-800 mb-3 flex items-center">
+                                        <span class="w-1.5 h-1.5 bg-pink-500 rounded-full mr-2"></span> Left Sidebar
+                                    </h4>
+                                    <ul class="text-sm space-y-2">
+                                        <li><strong>Weather Widget</strong>: Real-time Mabalacat City weather updates.
+                                        </li>
+                                        <li><strong>Admin Login</strong>: Entry point for site administrators.</li>
+                                        <li><strong>Panel Communications</strong>: Displays images or text notifications
+                                            from management.</li>
+                                    </ul>
+                                </div>
+                                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                    <h4 class="font-bold text-slate-800 mb-3 flex items-center">
+                                        <span class="w-1.5 h-1.5 bg-pink-500 rounded-full mr-2"></span> Right Sidebar
+                                    </h4>
+                                    <ul class="text-sm space-y-2">
+                                        <li><strong>Interactive Calendar</strong>: View current month and navigate
+                                            dates.</li>
+                                        <li><strong>Holiday List</strong>: Tracking Philippine holidays to keep you
+                                            informed of upcoming events.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Admin Panel Guide -->
+                <section id="admin-panel" class="scroll-mt">
+                    <div class="section-card">
+                        <h2 class="text-2xl">3. Admin Panel Guide</h2>
+
+                        <div id="admin-access" class="scroll-mt mb-10">
+                            <div class="flex items-center mb-4">
+                                <div class="icon-box"><i class="fa-solid fa-key"></i></div>
+                                <h3 class="text-xl m-0">3.1 Accessing the Admin Panel</h3>
+                            </div>
+                            <div class="bg-pink-50 p-6 rounded-2xl border border-pink-100 flex gap-4">
+                                <div class="text-pink-500 text-xl font-black">1.</div>
+                                <p class="text-sm text-pink-800">Locate the <strong>Admin Login</strong> button on the
+                                    left sidebar of the portal dashboard.</p>
+                            </div>
+                            <div class="bg-pink-50 p-6 rounded-2xl border border-pink-100 flex gap-4 mt-3">
+                                <div class="text-pink-500 text-xl font-black">2.</div>
+                                <p class="text-sm text-pink-800">Enter your secure username and password on the login
+                                    screen to access the management interface.</p>
+                            </div>
+                        </div>
+
+                        <!-- Announcements -->
+                        <div id="admin-announcements" class="scroll-mt mb-10 border-t border-slate-100 pt-10">
+                            <div class="flex items-center mb-4">
+                                <div class="icon-box"><i class="fa-solid fa-bullhorn"></i></div>
+                                <h3 class="text-xl m-0">3.2 Managing Announcements</h3>
+                            </div>
+                            <p class="text-slate-600 mb-4">Control the main top-banner notification across the entire
+                                portal.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center">
+                                    <span
+                                        class="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">Toggle</span>
+                                    <p class="text-sm font-semibold">Enable/Disable banner visibility globally.</p>
+                                </div>
+                                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center">
+                                    <span
+                                        class="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">Edit</span>
+                                    <p class="text-sm font-semibold">Customize Title and Message content.</p>
+                                </div>
+                                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center">
+                                    <span
+                                        class="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">Sync</span>
+                                    <p class="text-sm font-semibold">Save changes to push updates instantly.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Left Panel -->
+                        <div id="admin-left-panel" class="scroll-mt mb-10 border-t border-slate-100 pt-10">
+                            <div class="flex items-center mb-4">
+                                <div class="icon-box"><i class="fa-solid fa-gear"></i></div>
+                                <h3 class="text-xl m-0">3.3 Managing Left Panel</h3>
+                            </div>
+                            <p class="text-slate-600 mb-6">Manage widgets and decorative elements on the left side of
+                                the user portal.</p>
+                            <div class="space-y-4">
+                                <div class="flex gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-pink-500 mt-2"></div>
+                                    <div>
+                                        <h5 class="font-bold text-slate-800">General Settings</h5>
+                                        <p class="text-sm text-slate-500">Toggle the Weather Widget and the 2D Floating
+                                            Background effect.</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-pink-500 mt-2"></div>
+                                    <div>
+                                        <h5 class="font-bold text-slate-800">Panel Announcements</h5>
+                                        <p class="text-sm text-slate-500">Upload image-based posters or text
+                                            announcements for the sidebar rotation.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Apps Management -->
+                        <div id="admin-apps" class="scroll-mt mb-10 border-t border-slate-100 pt-10">
+                            <div class="flex items-center mb-4">
+                                <div class="icon-box"><i class="fa-solid fa-rocket"></i></div>
+                                <h3 class="text-xl m-0">3.4 Managing Apps</h3>
+                            </div>
+                            <p class="text-slate-600 mb-6">Create and modify the application cards available in the main
+                                grid.</p>
+                            <div class="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100">
+                                <h5 class="font-bold text-indigo-900 mb-4">Creation Checklist:</h5>
+                                <div class="grid sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                                    <span class="flex items-center gap-2"><i
+                                            class="fa-solid fa-check text-indigo-500"></i> Title Line</span>
+                                    <span class="flex items-center gap-2"><i
+                                            class="fa-solid fa-check text-indigo-500"></i> Assign Folder</span>
+                                    <span class="flex items-center gap-2"><i
+                                            class="fa-solid fa-check text-indigo-500"></i> Icon Selection</span>
+                                    <span class="flex items-center gap-2"><i
+                                            class="fa-solid fa-check text-indigo-500"></i> Color Theme</span>
+                                    <span class="flex items-center gap-2"><i
+                                            class="fa-solid fa-check text-indigo-500"></i> Link URL</span>
+                                    <span class="flex items-center gap-2"><i
+                                            class="fa-solid fa-check text-indigo-500"></i> App Description</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Folders Management -->
+                        <div id="admin-folders" class="scroll-mt border-t border-slate-100 pt-10">
+                            <div class="flex items-center mb-4">
+                                <div class="icon-box"><i class="fa-solid fa-folder-open"></i></div>
+                                <h3 class="text-xl m-0">3.5 Managing Folders</h3>
+                            </div>
+                            <p class="text-slate-600 mb-4">Group sets of tools into organized containers.</p>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div class="p-6 bg-slate-900 text-white rounded-2xl shadow-xl">
+                                    <h6 class="font-bold mb-2">Visibility Control</h6>
+                                    <p class="text-xs text-slate-400">You can hide an entire folder along with all its
+                                        containing apps using the visibility toggle without losing any data.</p>
+                                </div>
+                                <div class="p-6 bg-white border-2 border-slate-100 rounded-2xl">
+                                    <h6 class="font-bold text-slate-800 mb-2">Folder Cleanup</h6>
+                                    <p class="text-xs text-slate-500">Deleting a folder will also clear its association
+                                        from all previously attached apps, moving them back to the main grid root.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <footer class="mt-12 text-center text-slate-400 text-sm pb-12">
+                    <hr class="border-slate-200 mb-6">
+                    <p>&copy; 2026 La Rose Noire Facilities. All Rights Reserved.</p>
+                    <p class="mt-1">Generated for efficiency and centralized management.</p>
+                </footer>
+
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+
+</body>
+
+</html>
