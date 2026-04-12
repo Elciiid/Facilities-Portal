@@ -131,14 +131,13 @@ if (isset($_SESSION['admin_login_time'])) {
 </head>
 
 <body class="text-gray-700">
-    <!-- Full Screen Introduction -->
     <div id="fullscreenIntro" class="fixed inset-0 z-[300] bg-white flex items-center justify-center">
         <div id="introContent" class="text-center transition-all duration-1000">
-            <h1 id="introTitle"
+            <h1 id="introTitle" style="opacity: 0;"
                 class="text-8xl md:text-9xl font-black text-gray-900 tracking-tighter leading-none">
                 Admin <span class="text-pink-500">Panel</span>
             </h1>
-            <p id="introSubtitle" class="text-xl text-gray-600 mt-6 opacity-0">
+            <p id="introSubtitle" style="opacity: 0;" class="text-xl text-gray-600 mt-6">
                 Manage your facilities portal
             </p>
         </div>
