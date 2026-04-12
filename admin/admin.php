@@ -1,3 +1,58 @@
+<?php
+// 1. Initialize Database & Session (Centralized)
+// MUST BE AT THE VERY TOP TO PREVENT "HEADERS ALREADY SENT" ERRORS
+require_once __DIR__ . '/../connection/database.php';
+
+/**
+ * Helper function to get a premium dynamic avatar URL
+ */
+function getEmployeePhotoUrl($name)
+{
+    $name = urlencode($name ?: 'User');
+    return "https://ui-avatars.com/api/?name=$name&background=db2777&color=fff&size=200&bold=true&format=svg";
+}
+
+/**
+ * Generate an img tag for user avatar
+ */
+function getEmployeePhotoImg($fullname, $classes = '')
+{
+    $url = getEmployeePhotoUrl($fullname);
+    $classes_attr = $classes ? ' class="' . htmlspecialchars($classes) . '"' : '';
+    return '<img src="' . $url . '" alt="' . htmlspecialchars($fullname) . '"' . $classes_attr . ' />';
+}
+
+/**
+ * Check if admin is authenticated
+ */
+if (!isset($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] !== true) {
+    header("Location: /admin/admin_login.php");
+    exit();
+}
+
+/**
+ * Check if user has admin privileges
+ */
+if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+    header("Location: /admin/admin_login.php?error=unauthorized");
+    exit();
+}
+
+/**
+ * Check session timeout (24 hours)
+ */
+if (isset($_SESSION['admin_login_time'])) {
+    $login_time = $_SESSION['admin_login_time'];
+    $current_time = time();
+    $hours_diff = ($current_time - $login_time) / 3600;
+
+    if ($hours_diff > 24) {
+        session_destroy();
+        header("Location: /admin/admin_login.php?error=expired");
+        exit();
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,65 +62,6 @@
     <title>Admin Panel - La Rose Noire Facilities</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <?php
-    // 1. Initialize Database & Session (Centralized)
-    require_once __DIR__ . '/../connection/database.php';
-    
-    /**
-     * Helper function to get a premium dynamic avatar URL
-     * @param string $name The user's full name
-     * @return string The avatar URL
-     */
-    function getEmployeePhotoUrl($name)
-    {
-        $name = urlencode($name ?: 'User');
-        return "https://ui-avatars.com/api/?name=$name&background=db2777&color=fff&size=200&bold=true&format=svg";
-    }
-
-    /**
-     * Generate an img tag for user avatar with dynamic fallback
-     * @param string $fullname The full name for the avatar
-     * @param string $classes CSS classes for the img tag
-     * @return string HTML img tag
-     */
-    function getEmployeePhotoImg($fullname, $classes = '')
-    {
-        $url = getEmployeePhotoUrl($fullname);
-        $classes_attr = $classes ? ' class="' . htmlspecialchars($classes) . '"' : '';
-        return '<img src="' . $url . '" alt="' . htmlspecialchars($fullname) . '"' . $classes_attr . ' />';
-    }
-
-    /**
-     * Check if admin is authenticated
-     */
-    if (!isset($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] !== true) {
-        header("Location: /admin/admin_login.php");
-        exit();
-    }
-
-    /**
-     * Check if user has admin privileges
-     */
-    if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
-        header("Location: /admin/admin_login.php?error=unauthorized");
-        exit();
-    }
-
-    /**
-     * Check session timeout (24 hours)
-     */
-    if (isset($_SESSION['admin_login_time'])) {
-        $login_time = $_SESSION['admin_login_time'];
-        $current_time = time();
-        $hours_diff = ($current_time - $login_time) / 3600;
-
-        if ($hours_diff > 24) {
-            session_destroy();
-            header("Location: /admin/admin_login.php?error=expired");
-            exit();
-        }
-    }
-    ?>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
 
@@ -685,112 +681,89 @@
             }, 100); // Small delay to ensure DOM is ready
         });
 
-        // Announcements
-        async function loadAnnouncements() {
+        // MASTER DATA LOAD
+        async function refreshAdminData() {
             try {
-                // Add cache-busting parameter to ensure fresh data
-                const response = await fetch('../data/announcements.json?v=' + Date.now(), {
-                    cache: 'no-cache',
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    }
-                });
+                const response = await fetch('../api/get_admin_data.php?v=' + Date.now(), { cache: 'no-cache' });
                 const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Data error:', data.error);
+                    return;
+                }
 
-                document.getElementById('announcement-active').checked = data.active;
-                document.getElementById('announcement-title').value = data.title;
-                document.getElementById('announcement-message').value = data.message;
+                // Populate UI from consolidated data
+                updateAnnouncementsUI(data.announcement);
+                updateSettingsUI(data.settings);
+                updateAppsUI(data.apps);
+                updateFoldersUI(data.folders, data.apps);
+                updateCarouselAnnouncementsUI(data.carousel_announcements);
+
             } catch (error) {
-                console.error('Error loading announcements:', error);
+                console.error('Error refreshing admin data:', error);
             }
         }
 
-        document.getElementById('announcementForm').addEventListener('submit', function (e) {
-            e.preventDefault();
+        // Individual UI Update Functions
+        function updateAnnouncementsUI(announcement) {
+            if (!announcement) return;
+            document.getElementById('announcement-active').checked = !!announcement.active;
+            document.getElementById('announcement-title').value = announcement.title || '';
+            document.getElementById('announcement-message').value = announcement.message || '';
+        }
 
-            showConfirmationModal(
-                'Save Announcement',
-                'Are you sure you want to save this announcement?',
-                async () => {
-                    const data = {
-                        active: document.getElementById('announcement-active').checked,
-                        title: document.getElementById('announcement-title').value,
-                        message: document.getElementById('announcement-message').value,
-                        updated_at: new Date().toISOString()
-                    };
-
-                    try {
-                        const response = await fetch('../api/save_announcement.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(data)
-                        });
-
-                        if (response.ok) {
-                            showSuccessModal('Announcement Saved', 'The announcement has been successfully saved.');
-                        } else {
-                            alert('Error saving announcement');
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        alert('Error saving announcement');
-                    }
-                }
-            );
-        });
-
-        // Left Panel
-        async function loadLeftPanelData() {
-            try {
-                // Add cache-busting parameter to ensure fresh data
-                const response = await fetch('../data/left_panel.json?v=' + Date.now(), {
-                    cache: 'no-cache',
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    }
-                });
-                const data = await response.json();
-
-                document.getElementById('weather-enabled').checked = data.weather_enabled;
-                if (document.getElementById('background-enabled')) {
-                    document.getElementById('background-enabled').checked = data.background_enabled !== false; // Default to true if undefined
-                }
-
-                const announcementsList = document.getElementById('announcements-list');
-                announcementsList.innerHTML = '';
-
-                data.announcements.forEach(announcement => {
-                    const announcementEl = document.createElement('div');
-                    announcementEl.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-xl';
-                    announcementEl.innerHTML = `
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center">
-                                <i class="fa-solid ${announcement.type === 'image' ? 'fa-image' : 'fa-file-text'} text-pink-600"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-semibold text-gray-900">${announcement.title}</h4>
-                                <p class="text-sm text-gray-600">${announcement.subtitle || ''}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" ${announcement.enabled ? 'checked' : ''} onchange="toggleAnnouncement('${announcement.id}', this.checked)" class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
-                                <span class="ml-2 text-sm">Enabled</span>
-                            </label>
-                            <button onclick="editAnnouncement('${announcement.id}')" class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm">
-                                <i class="fa-solid fa-edit"></i>
-                            </button>
-                            <button onclick="deleteAnnouncement('${announcement.id}')" class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
-                    `;
-                    announcementsList.appendChild(announcementEl);
-                });
-            } catch (error) {
-                console.error('Error loading left panel data:', error);
+        function updateSettingsUI(settings) {
+            if (!settings) return;
+            document.getElementById('weather-enabled').checked = settings.weather?.enabled ?? true;
+            if (document.getElementById('background-enabled')) {
+                document.getElementById('background-enabled').checked = settings.background?.enabled !== false;
             }
         }
+
+        function updateCarouselAnnouncementsUI(announcements) {
+            const list = document.getElementById('announcements-list');
+            list.innerHTML = '';
+            
+            if (!announcements || announcements.length === 0) {
+                list.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No carousel announcements found.</p>';
+                return;
+            }
+
+            announcements.forEach(a => {
+                const el = document.createElement('div');
+                el.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-xl';
+                el.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center overflow-hidden">
+                            ${a.image_url ? `<img src="${a.image_url}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-image text-pink-600"></i>`}
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">${a.title}</h4>
+                            <p class="text-sm text-gray-600">${a.subtitle || ''}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" ${a.enabled ? 'checked' : ''} onchange="toggleAnnouncement('${a.id}', this.checked)" class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                            <span class="ml-2 text-sm">Enabled</span>
+                        </label>
+                        <button onclick="editAnnouncement('${a.id}')" class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm">
+                            <i class="fa-solid fa-edit"></i>
+                        </button>
+                        <button onclick="deleteAnnouncement('${a.id}')" class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                list.appendChild(el);
+            });
+        }
+
+        // Backward compatibility wrappers
+        async function loadAnnouncements() { refreshAdminData(); }
+        async function loadLeftPanelData() { refreshAdminData(); }
+        async function loadApps() { refreshAdminData(); }
+        async function loadFolders() { refreshAdminData(); }
 
         async function toggleAnnouncementActive() {
             const active = document.getElementById('announcement-active').checked;
@@ -1391,70 +1364,13 @@
 
         async function loadFolders() {
             try {
-                // Fetch both apps (for counts) and folders (for metadata)
-                const [appsRes, foldersRes] = await Promise.all([
-                    fetch('../data/apps.json?v=' + Date.now(), { cache: 'no-cache' }),
-                    fetch('../data/folders.json?v=' + Date.now(), { cache: 'no-cache' })
-                ]);
+                const response = await fetch('../api/get_admin_data.php');
+                const data = await response.json();
+                updateFoldersUI(data.folders, data.apps);
+            } catch (e) { console.error(e); }
+        }
 
-                const apps = await appsRes.json();
-                const foldersConfig = await foldersRes.json(); // Array of {name, enabled}
-
-                // Get all unique folder names from apps
-                const appFolders = [...new Set(apps.map(app => app.folder).filter(f => f))];
-
-                // Merge with foldersConfig to get complete list (some config folders might be empty)
-                const allFolderNames = new Set([...appFolders, ...foldersConfig.map(f => f.name)]);
-
-                const combinedFolders = Array.from(allFolderNames).map(name => {
-                    const config = foldersConfig.find(f => strCompare(f.name, name));
-                    const appCount = apps.filter(a => strCompare(a.folder, name)).length;
-                    return {
-                        name: name,
-                        enabled: config ? config.enabled : true, // Default to true if not in config
-                        count: appCount
-                    };
-                });
-
-                const list = document.getElementById('folders-list');
-                list.innerHTML = '';
-
-                combinedFolders.sort((a, b) => a.name.localeCompare(b.name)).forEach(folder => {
-                    const el = document.createElement('div');
-                    el.className = 'flex items-center justify-between p-4 sm:p-6 bg-gray-50 rounded-xl';
-                    el.innerHTML = `
-    <div class="flex items-center gap-4">
-        <div class="w-12 h-12 bg-pink-100 text-pink-600 rounded-xl flex items-center justify-center">
-            <i class="fa-solid fa-folder text-2xl"></i>
-        </div>
-        <div>
-            <h4 class="font-bold text-gray-900">${folder.name}</h4>
-            <p class="text-sm text-gray-500">${folder.count} Apps</p>
-        </div>
-    </div>
-    <div class="flex items-center gap-4">
-        <label class="inline-flex items-center">
-            <input type="checkbox" ${folder.enabled ? 'checked' : ''}
-                onchange="toggleFolderEnabled('${folder.name}', this.checked)"
-                class="rounded border-gray-300 text-pink-600 focus:ring-pink-500 w-5 h-5">
-            <span class="ml-2 text-sm text-gray-600">Enabled</span>
-        </label>
-        <button onclick="editFolder('${folder.name}')"
-            class="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-            <i class="fa-solid fa-edit"></i>
-        </button>
-        <button onclick="deleteFolder('${folder.name}')"
-            class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-            <i class="fa-solid fa-trash"></i>
-        </button>
-    </div>
-    `;
-                    list.appendChild(el);
-                });
-
-            } catch (error) {
-                console.error('Error loading folders:', error);
-            }
+            } catch (e) { console.error(e); }
         }
 
         function strCompare(a, b) {
@@ -1591,15 +1507,15 @@
                     return;
                 }
 
-                const response = await fetch('../data/apps.json?v=' + Date.now());
-                const apps = await response.json();
+                const response = await fetch('../api/get_admin_data.php');
+                const data = await response.json();
+                const apps = data.apps;
 
                 // Filter apps that match query AND are not already in this folder
-                // AND not 'implicit' folder matches (exact match only)
                 const currentFolderName = document.getElementById('folder-original-name').value;
                 const matches = apps.filter(a =>
                     a.title.toLowerCase().includes(query) &&
-                    !strCompare(a.folder, currentFolderName)
+                    !strCompare(a.folder_name, currentFolderName)
                 );
 
                 results.innerHTML = '';

@@ -723,13 +723,12 @@
 
     <!-- Full Screen Introduction -->
     <div id="fullscreenIntro" class="fixed inset-0 z-[300] bg-white flex items-center justify-center">
-        <div class="text-center">
+        <div id="introContent" class="text-center transition-all duration-1000">
             <h1 id="introTitle"
-                class="text-8xl md:text-9xl font-black text-gray-900 tracking-tighter leading-none transition-all duration-1000 ease-out">
+                class="text-8xl md:text-9xl font-black text-gray-900 tracking-tighter leading-none">
                 Facilities <span class="text-pink-500">Pro</span>
             </h1>
-            <p class="text-xl text-gray-600 mt-6 opacity-0 animate-fade-in"
-                style="animation-delay: 0.5s; animation-fill-mode: both;">
+            <p id="introSubtitle" class="text-xl text-gray-600 mt-6 opacity-0">
                 Centralized workspace for compliance and reporting
             </p>
         </div>
@@ -1007,6 +1006,105 @@
             }
         }
 
+        function renderMainGrid(apps, folders) {
+            const grid = document.getElementById('cardGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            // 1. Group apps by folder
+            const folderMap = {};
+            apps.forEach(app => {
+                if (app.folder_id) {
+                    if (!folderMap[app.folder_id]) folderMap[app.folder_id] = [];
+                    folderMap[app.folder_id].push(app);
+                }
+            });
+
+            // 2. Render Folders
+            folders.forEach(folder => {
+                const folderApps = apps.filter(a => a.folder_id === folder.id || a.folder_name === folder.name);
+                if (folderApps.length > 0) {
+                    const folderCard = createFolderCard(folder, folderApps);
+                    grid.appendChild(folderCard);
+                }
+            });
+
+            // 3. Render Individual Apps (those not in any enabled folder)
+            apps.forEach(app => {
+                if (!app.folder_id && !app.folder_name) {
+                    const appCard = createAppCard(app);
+                    grid.appendChild(appCard);
+                }
+            });
+        }
+
+        function createFolderCard(folder, folderApps) {
+            const div = document.createElement('div');
+            div.className = 'portal-card rounded-[3rem] p-8 flex flex-col items-center justify-center text-center group';
+            div.onclick = () => openFolder(folder.name, folderApps);
+            
+            // Preview icons
+            const previewIcons = folderApps.slice(0, 4).map(app => 
+                `<div class="w-10 h-10 bg-${app.color || 'pink'}-100 text-${app.color || 'pink'}-600 rounded-xl flex items-center justify-center shadow-inner">
+                    <i class="fa-solid ${app.icon} text-sm"></i>
+                </div>`
+            ).join('');
+
+            div.innerHTML = `
+                <div class="icon-preview-area flex flex-wrap gap-2 mb-6 justify-center">
+                    ${previewIcons}
+                </div>
+                <h3 class="text-2xl font-black text-gray-800 mb-2 truncate w-full">${folder.name}</h3>
+                <p class="text-slate-500 font-medium text-sm">${folderApps.length} Applications</p>
+            `;
+            return div;
+        }
+
+        function createAppCard(app) {
+            const div = document.createElement('div');
+            div.className = 'portal-card rounded-[3rem] p-8 flex flex-col group h-full transition-all duration-300';
+            div.onclick = () => window.open(app.link, '_blank');
+            
+            div.innerHTML = `
+                <div class="app-icon-container w-20 h-20 bg-${app.color || 'pink'}-100 text-${app.color || 'pink'}-600 rounded-[2rem] flex items-center justify-center mb-8 shadow-inner group-hover:scale-110 transition-transform duration-500">
+                    <i class="fa-solid ${app.icon} text-4xl"></i>
+                </div>
+                <div class="mt-auto">
+                    <h3 class="text-2xl font-black text-gray-800 mb-2 group-hover:text-pink-600 transition-colors">${app.title}</h3>
+                    <p class="text-slate-500 font-medium text-sm line-clamp-2">${app.description || ''}</p>
+                </div>
+            `;
+            return div;
+        }
+
+        function openFolder(name, folderApps) {
+            const overlay = document.getElementById('folderOverlay');
+            const title = document.getElementById('folderTitle');
+            const grid = document.getElementById('folderAppsGrid');
+            
+            title.textContent = name;
+            grid.innerHTML = '';
+            
+            folderApps.forEach(app => {
+                const appDiv = document.createElement('div');
+                appDiv.className = 'flex flex-col items-center group cursor-pointer w-32';
+                appDiv.onclick = () => window.open(app.link, '_blank');
+                appDiv.innerHTML = `
+                    <div class="w-24 h-24 bg-${app.color || 'pink'}-100 text-${app.color || 'pink'}-600 rounded-[2.5rem] flex items-center justify-center mb-4 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                        <i class="fa-solid ${app.icon} text-4xl"></i>
+                    </div>
+                    <span class="text-sm font-bold text-gray-700 text-center">${app.title}</span>
+                `;
+                grid.appendChild(appDiv);
+            });
+            
+            overlay.classList.add('active');
+        }
+
+        function closeFolder() {
+            document.getElementById('folderOverlay').classList.remove('active');
+        }
+
         function renderLeftPanel(data) {
             // Handle weather section
             const weatherSection = document.getElementById('weather-section');
@@ -1039,31 +1137,40 @@
         // Fullscreen introduction animation
         function startIntroAnimation() {
             const introElement = document.getElementById('fullscreenIntro');
-            const introTitle = document.getElementById('introTitle');
+            const introContent = document.getElementById('introContent');
+            const introSubtitle = document.getElementById('introSubtitle');
 
-            if (introElement && introTitle) {
-                // Initial fade in for the title
-                gsap.to(introTitle, { opacity: 1, y: 0, duration: 1, ease: "power4.out" });
+            if (introElement && introContent) {
+                // Initial fade in for the subtitle
+                gsap.to(introSubtitle, { opacity: 1, duration: 1, delay: 0.5 });
 
                 // Trigger swipe after delay
                 setTimeout(() => {
+                    // Start fading out the text BEFORE OR DURING the swipe so it doesn't just cut off
+                    gsap.to(introContent, { opacity: 0, duration: 0.6, ease: "power2.in" });
                     introElement.classList.add('screen-swipe-up');
-                }, 1800);
+                }, 2000);
 
                 // Cleanup
                 setTimeout(() => {
                     introElement.style.display = 'none';
-                }, 2600);
+                    // Optional: Fade in the main dashboard content if it was hidden
+                    gsap.to('main > div', { opacity: 1, duration: 0.8 });
+                }, 2800);
             }
         }
 
         // Initialize everything on page load
         document.addEventListener('DOMContentLoaded', async function () {
+            // Initial state: hide main content to prevent duplication during intro
+            const mainContent = document.querySelector('main > div');
+            if (mainContent) mainContent.style.opacity = '0';
+
             // Initial state for intro title
             const introTitle = document.getElementById('introTitle');
             if (introTitle) {
-                introTitle.style.opacity = '0';
-                introTitle.style.transform = 'translateY(20px)';
+                gsap.set(introTitle, { opacity: 0, y: 20 });
+                gsap.to(introTitle, { opacity: 1, y: 0, duration: 1, delay: 0.2 });
             }
 
             // Load all data immediately while intro plays
