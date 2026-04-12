@@ -1036,70 +1036,76 @@
         // Global state for change detection
         let lastPortalState = null;
 
+        // Fullscreen introduction animation
+        function startIntroAnimation() {
+            const introElement = document.getElementById('fullscreenIntro');
+            const introTitle = document.getElementById('introTitle');
+
+            if (introElement && introTitle) {
+                // Initial fade in for the title
+                gsap.to(introTitle, { opacity: 1, y: 0, duration: 1, ease: "power4.out" });
+
+                // Trigger swipe after delay
+                setTimeout(() => {
+                    introElement.classList.add('screen-swipe-up');
+                }, 1800);
+
+                // Cleanup
+                setTimeout(() => {
+                    introElement.style.display = 'none';
+                }, 2600);
+            }
+        }
+
         // Initialize everything on page load
         document.addEventListener('DOMContentLoaded', async function () {
+            // Initial state for intro title
+            const introTitle = document.getElementById('introTitle');
+            if (introTitle) {
+                introTitle.style.opacity = '0';
+                introTitle.style.transform = 'translateY(20px)';
+            }
+
             // Load all data immediately while intro plays
             await refreshPortalData(true);
 
             // Check for updates every 10 seconds (optimized for DB)
             setInterval(() => refreshPortalData(false), 10000);
 
-            // Function to show update notifications
-            function showUpdateNotification(message) {
-                // Remove any existing notification
-                const existingNotification = document.getElementById('update-notification');
-                if (existingNotification) {
-                    existingNotification.remove();
-                }
+            // Start intro animation
+            setTimeout(startIntroAnimation, 500);
 
-                // Create new notification
-                const notification = document.createElement('div');
-                notification.id = 'update-notification';
-                notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transform translate-x-full transition-transform duration-300';
-                notification.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-sync-alt fa-spin"></i>
-                    <span class="text-sm font-medium">${message}</span>
-                </div>
-            `;
-
-                document.body.appendChild(notification);
-
-                // Animate in
-                setTimeout(() => {
-                    notification.classList.remove('translate-x-full');
-                }, 100);
-
-                // Remove after 3 seconds
-                setTimeout(() => {
-                    notification.classList.add('translate-x-full');
-                    setTimeout(() => {
-                        notification.remove();
-                    }, 300);
-                }, 3000);
-            }
-
+            // KEYBOARD & SIDEBAR UTILITIES
             function closeSidebars() {
                 const leftSidebar = document.querySelector('aside:first-of-type');
                 const rightSidebar = document.querySelector('aside:last-of-type');
                 const overlay = document.querySelector('.sidebar-overlay');
-
                 if (leftSidebar) leftSidebar.classList.remove('show-sidebar');
                 if (rightSidebar) rightSidebar.classList.remove('show-sidebar');
                 if (overlay) overlay.classList.remove('active');
             }
 
-            // Keyboard support for closing sidebars
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    closeSidebars();
-                }
+                if (e.key === 'Escape') closeSidebars();
             });
 
-            // Start intro animation after data starts loading
-            setTimeout(() => {
-                startIntroAnimation();
-            }, 100); // Small delay to ensure DOM is ready
+            // Global Notification Function
+            window.showUpdateNotification = function(message) {
+                const existing = document.getElementById('update-notification');
+                if (existing) existing.remove();
+
+                const notification = document.createElement('div');
+                notification.id = 'update-notification';
+                notification.className = 'fixed top-4 right-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-3 rounded-2xl shadow-2xl z-[400] transform translate-x-full transition-transform duration-500 flex items-center gap-3';
+                notification.innerHTML = `<i class="fa-solid fa-circle-check"></i><span class="text-xs font-bold uppercase tracking-wider">${message}</span>`;
+                
+                document.body.appendChild(notification);
+                setTimeout(() => notification.classList.remove('translate-x-full'), 100);
+                setTimeout(() => {
+                    notification.classList.add('translate-x-full');
+                    setTimeout(() => notification.remove(), 500);
+                }, 4000);
+            };
         });
 
         async function fetchMabalacatWeather() {
