@@ -1009,6 +1009,66 @@
             }
         }
 
+        function renderLeftPanel(data) {
+            // 1. Weather Toggle
+            const weatherWidget = document.getElementById('weather-widget');
+            if (weatherWidget) {
+                weatherWidget.style.display = data.weather_enabled ? 'flex' : 'none';
+            }
+
+            // 2. Background Toggle
+            if (data.background_enabled) {
+                if (typeof startInfiniteBackground === 'function') {
+                    startInfiniteBackground();
+                }
+            } else {
+                const canvas = document.getElementById('animationCanvas');
+                if (canvas) canvas.style.opacity = '0';
+            }
+
+            // 3. Render Carousel
+            const carousel = document.getElementById('announcement-carousel');
+            if (!carousel) return;
+            
+            if (!data.announcements || data.announcements.length === 0) {
+                carousel.innerHTML = '<div class="text-center py-10 text-gray-400 italic">No announcements today.</div>';
+                return;
+            }
+
+            carousel.innerHTML = data.announcements.map((ann, idx) => `
+                <div class="carousel-item ${idx === 0 ? 'active' : ''} h-full">
+                    <div class="relative h-full w-full overflow-hidden rounded-[2.5rem]">
+                        <img src="${ann.image_url}" class="w-full h-full object-cover" 
+                             onerror="this.src='assets/placeholder.jpg'">
+                        <div class="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white">
+                            <h4 class="text-xl font-black mb-1 truncate">${ann.title}</h4>
+                            <p class="text-xs font-bold uppercase tracking-widest text-pink-400 mb-2">${ann.subtitle || ''}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Restart carousel if needed (assuming bootstrap or simple interval)
+            if (data.announcements.length > 1) {
+                initCarouselSystem();
+            }
+        }
+
+        let carouselInterval = null;
+        function initCarouselSystem() {
+            if (carouselInterval) clearInterval(carouselInterval);
+            carouselInterval = setInterval(() => {
+                const items = document.querySelectorAll('#announcement-carousel .carousel-item');
+                if (items.length <= 1) return;
+                
+                let activeIdx = Array.from(items).findIndex(i => i.classList.contains('active'));
+                items[activeIdx].classList.remove('active');
+                
+                let nextIdx = (activeIdx + 1) % items.length;
+                items[nextIdx].classList.add('active');
+            }, 5000);
+        }
+
         function renderMainGrid(apps, folders) {
             const grid = document.getElementById('cardGrid');
             if (!grid) return;

@@ -19,7 +19,11 @@ try {
     $stmt = $conn->query("SELECT * FROM fcl_folders WHERE enabled = true ORDER BY \"order\" ASC");
     $folders = $stmt->fetchAll();
 
-    // 4. Fetch Settings
+    // 4. Fetch carousel announcements
+    $stmt = $conn->query("SELECT * FROM fcl_carousel_announcements WHERE enabled = true ORDER BY \"order\" ASC");
+    $carousel = $stmt->fetchAll();
+
+    // 5. Fetch Settings
     $stmt = $conn->query("SELECT * FROM fcl_portal_settings");
     $settingsRaw = $stmt->fetchAll();
     $settings = [];
@@ -31,7 +35,7 @@ try {
     $leftPanel = [
         'weather_enabled' => $settings['weather']['enabled'] ?? true,
         'background_enabled' => $settings['background']['enabled'] ?? true,
-        'announcements' => [], // These are different from the top banner
+        'announcements' => $carousel,
         'logos' => []
     ];
 
