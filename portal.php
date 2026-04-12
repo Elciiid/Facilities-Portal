@@ -487,7 +487,7 @@
         }
 
         .screen-swipe-up {
-            animation: screenSwipeUp 0.8s ease-out forwards;
+            animation: screenSwipeUp 0.6s ease-in-out forwards;
         }
 
         /* Default Grid (3 Columns) */
@@ -1142,34 +1142,28 @@
 
             if (introElement && introContent) {
                 // Initial fade in for the subtitle
-                gsap.to(introSubtitle, { opacity: 1, duration: 1, delay: 0.5 });
+                gsap.to(introSubtitle, { opacity: 1, duration: 1, delay: 0.3 });
 
                 // Trigger swipe after delay
                 setTimeout(() => {
                     // Start fading out the text BEFORE OR DURING the swipe so it doesn't just cut off
-                    gsap.to(introContent, { opacity: 0, duration: 0.6, ease: "power2.in" });
+                    gsap.to(introContent, { opacity: 0, duration: 0.4, ease: "power2.in" });
                     introElement.classList.add('screen-swipe-up');
-                }, 2000);
+                }, 1200);
 
                 // Cleanup
                 setTimeout(() => {
                     introElement.style.display = 'none';
-                    // Optional: Fade in the main dashboard content if it was hidden
-                    gsap.to('main > div', { opacity: 1, duration: 0.8 });
-                }, 2800);
+                }, 1800);
             }
         }
 
         // Initialize everything on page load
         document.addEventListener('DOMContentLoaded', async function () {
-            // Initial state: hide main content to prevent duplication during intro
-            const mainContent = document.querySelector('main > div');
-            if (mainContent) mainContent.style.opacity = '0';
-
             // Initial state for intro title
             const introTitle = document.getElementById('introTitle');
             if (introTitle) {
-                gsap.set(introTitle, { opacity: 0, y: 20 });
+                gsap.set(introTitle, { opacity: 0, y: 0 });
                 gsap.to(introTitle, { opacity: 1, y: 0, duration: 1, delay: 0.2 });
             }
 

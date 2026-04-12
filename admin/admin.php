@@ -62,6 +62,7 @@ if (isset($_SESSION['admin_login_time'])) {
     <title>Admin Panel - La Rose Noire Facilities</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
 
@@ -94,7 +95,7 @@ if (isset($_SESSION['admin_login_time'])) {
         }
 
         .screen-swipe-up {
-            animation: screenSwipeUp 0.8s ease-out forwards;
+            animation: screenSwipeUp 0.6s ease-in-out forwards;
         }
 
         @keyframes fade-in {
@@ -124,26 +125,7 @@ if (isset($_SESSION['admin_login_time'])) {
 
         .custom-scrollbar::-webkit-scrollbar-thumb {
             background: #fbcfe8;
-            border-radius: 20px;
-        }
-
-        /* Responsive improvements */
-        @media (max-width: 640px) {
-            .tab-active {
-                font-size: 0.875rem;
-            }
-
-            button {
-                touch-action: manipulation;
-                min-height: 44px;
-            }
-
-            input,
-            select,
-            textarea {
-                font-size: 16px;
-                /* Prevents zoom on iOS */
-            }
+            border-radius: 200px;
         }
     </style>
 </head>
@@ -151,13 +133,12 @@ if (isset($_SESSION['admin_login_time'])) {
 <body class="text-gray-700">
     <!-- Full Screen Introduction -->
     <div id="fullscreenIntro" class="fixed inset-0 z-[300] bg-white flex items-center justify-center">
-        <div class="text-center">
+        <div id="introContent" class="text-center transition-all duration-1000">
             <h1 id="introTitle"
-                class="text-8xl md:text-9xl font-black text-gray-900 tracking-tighter leading-none transition-all duration-1000 ease-out">
+                class="text-8xl md:text-9xl font-black text-gray-900 tracking-tighter leading-none">
                 Admin <span class="text-pink-500">Panel</span>
             </h1>
-            <p class="text-xl text-gray-600 mt-6 opacity-0 animate-fade-in"
-                style="animation-delay: 0.5s; animation-fill-mode: both;">
+            <p id="introSubtitle" class="text-xl text-gray-600 mt-6 opacity-0">
                 Manage your facilities portal
             </p>
         </div>
@@ -218,7 +199,7 @@ if (isset($_SESSION['admin_login_time'])) {
                 <!-- Action Buttons (Right aligned) -->
                 <div class="flex items-center justify-end gap-4">
 
-                    <a href="admin_logout.php"
+                    <a href="../portal.php"
                         class="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition-colors font-semibold text-sm sm:text-base">
                         <i class="fa-solid fa-arrow-left mr-2"></i>Back to Portal
                     </a>
@@ -640,18 +621,31 @@ if (isset($_SESSION['admin_login_time'])) {
         // Fullscreen introduction animation
         function startIntroAnimation() {
             const introElement = document.getElementById('fullscreenIntro');
+            const introContent = document.getElementById('introContent');
+            const introSubtitle = document.getElementById('introSubtitle');
 
-            // Main content is already visible underneath with lower z-index
+            if (introElement && introContent) {
+                // Initial fade in for the subtitle
+                if (window.gsap) {
+                    gsap.to(introSubtitle, { opacity: 1, duration: 1, delay: 0.5 });
+                } else {
+                    introSubtitle.style.opacity = '1';
+                }
 
-            // Start the screen swipe animation after a brief delay
-            setTimeout(() => {
-                introElement.classList.add('screen-swipe-up');
-            }, 800); // Show title for 0.8 seconds before swiping
+                // Trigger swipe after delay
+                setTimeout(() => {
+                    // Start fading out the text BEFORE OR DURING the swipe so it doesn't just cut off
+                    if (window.gsap) {
+                        gsap.to(introContent, { opacity: 0, duration: 0.4, ease: "power2.in" });
+                    }
+                    introElement.classList.add('screen-swipe-up');
+                }, 1200);
 
-            // After swipe animation completes, remove intro overlay
-            setTimeout(() => {
-                introElement.style.display = 'none';
-            }, 1600); // 0.8s delay + 0.8s animation = 1.6s total
+                // Cleanup
+                setTimeout(() => {
+                    introElement.style.display = 'none';
+                }, 1800);
+            }
         }
 
         // Tab switching
@@ -669,6 +663,13 @@ if (isset($_SESSION['admin_login_time'])) {
 
         // Initialize everything on page load
         document.addEventListener('DOMContentLoaded', function () {
+            // Initial state for intro title
+            const introTitle = document.getElementById('introTitle');
+            if (introTitle && window.gsap) {
+                gsap.set(introTitle, { opacity: 0, y: 0 });
+                gsap.to(introTitle, { opacity: 1, y: 0, duration: 1, delay: 0.2 });
+            }
+
             // Load all data immediately while intro plays
             loadAnnouncements();
             loadLeftPanelData();

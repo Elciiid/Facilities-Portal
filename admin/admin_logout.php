@@ -19,7 +19,7 @@ if (ini_get("session.use_cookies")) {
 // Destroy the session in the database
 session_destroy();
 
-// Redirect to login page
-header("Location: /admin/admin_login.php");
+// Redirect to portal page
+header("Location: ../portal.php");
 exit();
 ?>
