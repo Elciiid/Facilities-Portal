@@ -1,0 +1,17 @@
+{
+    "version": 2,
+    "regions": ["sin1"],
+    "builds": [
+        { "src": "assets/**", "use": "@vercel/static" },
+        { "src": "uploads/**", "use": "@vercel/static" },
+        { "src": "data/**", "use": "@vercel/static" },
+        { "src": "**/*.php", "use": "vercel-php@0.7.2" }
+    ],
+    "routes": [
+        { "src": "/assets/(.*)", "dest": "/assets/$1" },
+        { "src": "/uploads/(.*)", "dest": "/uploads/$1" },
+        { "src": "/data/(.*)", "dest": "/data/$1" },
+        { "src": "^/$", "dest": "/portal.php" },
+        { "src": "/(.*)", "dest": "/$1" }
+    ]
+}

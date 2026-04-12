@@ -1,85 +1,56 @@
 <?php
-session_start();
-// Set timezone to ensure correct time display
-date_default_timezone_set('Asia/Manila'); // Adjust timezone as needed
+/**
+ * Admin Authentication - Supabase/PostgreSQL Edition
+ * Handles login verification using fcl_app_users table.
+ */
 
-$admin_server_name = "10.2.0.9";
-$connectionOptions = [
-    "UID" => "sa",
-    "PWD" => "S3rverDB02lrn25",
-    "Database" => "LRNPH_OJT"
-];
-
-$admin_conn = sqlsrv_connect($admin_server_name, $connectionOptions);
-
-if (!$admin_conn) {
-    die("Connection failed: " . print_r(sqlsrv_errors(), true));
-}
+// 1. Initialize Database & Session (Centralized)
+require_once __DIR__ . '/../connection/database.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST["username"] ?? "";
+    $username = trim($_POST["username"] ?? "");
     $password = $_POST["password"] ?? "";
 
     if (!empty($username) && !empty($password)) {
-        // Query to get employee information from LRNPH_OJT database
-        $query = "SELECT
-                lu.username,
-                lu.password,
-                ml.FirstName + ' ' + ml.LastName as fullname,
-                REPLACE(ml.Department, ' - LRN', '') as department,
-                ml.PositionTitle,
-                ml.EmployeeID
-                FROM LRNPH.dbo.lrnph_users lu
-                LEFT JOIN LRNPH_OJT.dbo.lrn_master_list ml
-                    ON lu.username = ml.BiometricsID
-                WHERE lu.username = ?";
+        try {
+            // Query for the user in fcl_app_users
+            $query = "SELECT * FROM fcl_app_users WHERE LOWER(username) = LOWER(?) LIMIT 1";
+            $stmt = $conn->prepare($query);
+            $stmt->execute([$username]);
+            $user = $stmt->fetch();
 
-        $params = array($username);
-        $stmt = sqlsrv_query($admin_conn, $query, $params);
-
-        if ($stmt === false) {
-            die(print_r(sqlsrv_errors(), true));
-        }
-
-        if ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-            if (password_verify($password, $row['password'])) {
-                $_SESSION['username'] = $row['username'];
-                $_SESSION['fullname'] = $row['fullname'];
-                $_SESSION['employee_id'] = $row['EmployeeID'];
-                $_SESSION['department'] = $row['department'];
-                $_SESSION['position_title'] = $row['PositionTitle'];
+            if ($user && password_verify($password, $user['password'])) {
+                // Set session variables from database
+                $_SESSION['username'] = $user['username'];
+                $_SESSION['fullname'] = $user['full_name'];
+                $_SESSION['employee_id'] = $user['employee_id'];
+                $_SESSION['department'] = $user['department'];
+                $_SESSION['role'] = $user['role'];
+                
                 $_SESSION['admin_authenticated'] = true;
+                $_SESSION['is_admin'] = ($user['role'] === 'admin');
                 $_SESSION['admin_login_time'] = time();
 
-                // List of specifically authorized EmployeeIDs for admin access
-                $authorized_employee_ids = [
-                    '2012-00003',
-                    '2013-00823'
-                ];
-
-                // Check if user has admin privileges
-                // Either by specific EmployeeID OR by being in Information Technology Department
-                $is_authorized_employee = in_array($row['EmployeeID'], $authorized_employee_ids);
-                $is_it_department = (trim($row['department']) === 'Information Technology Department');
-
-                if ($is_authorized_employee || $is_it_department) {
-                    $_SESSION['is_admin'] = true;
-                    $_SESSION['admin_role'] = 'admin';
-                    header("Location: admin.php");
-                } else {
-                    // Not authorized for admin access
-                    header("Location: admin_login.php?error=unauthorized");
-                }
+                // Redirect to admin panel
+                header("Location: /admin/admin.php");
                 exit();
             } else {
-                header("Location: admin_login.php?error=invalid");
+                // Invalid credentials
+                header("Location: /admin/admin_login.php?error=invalid");
                 exit();
             }
-        } else {
-            header("Location: admin_login.php?error=invalid");
+        } catch (PDOException $e) {
+            error_log("Auth Error: " . $e->getMessage());
+            header("Location: /admin/admin_login.php?error=system");
             exit();
         }
+    } else {
+        header("Location: /admin/admin_login.php?error=missing");
+        exit();
     }
+} else {
+    // Not a POST request
+    header("Location: /admin/admin_login.php");
+    exit();
 }
-sqlsrv_close($admin_conn);
 ?>

@@ -949,515 +949,100 @@
     </div>
 
     <script>
-        // Load announcements
-        async function loadAnnouncements() {
+        // Master function to load all portal data from Supabase
+        async function refreshPortalData(isInitial = false) {
             try {
-                // Add cache-busting parameter to ensure fresh data
-                const response = await fetch('data/announcements.json?v=' + Date.now(), {
+                const response = await fetch('/api/get_portal_data.php?v=' + Date.now(), {
                     cache: 'no-cache',
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    }
+                    headers: { 'Cache-Control': 'no-cache' }
                 });
                 const data = await response.json();
 
-                const banner = document.getElementById('announcement-banner');
-                const title = document.getElementById('announcement-title');
-                const message = document.getElementById('announcement-message');
-                const icon = document.getElementById('announcement-icon');
-
-                if (data.active && data.title && data.message) {
-                    title.textContent = data.title;
-                    message.textContent = data.message;
-
-                    // Set icon based on type
-                    switch (data.type) {
-                        case 'warning':
-                            icon.className = 'fa-solid fa-triangle-exclamation text-2xl animate-bounce';
-                            break;
-                        case 'success':
-                            icon.className = 'fa-solid fa-check-circle text-2xl animate-bounce';
-                            break;
-                        case 'error':
-                            icon.className = 'fa-solid fa-times-circle text-2xl animate-bounce';
-                            break;
-                        default:
-                            icon.className = 'fa-solid fa-bullhorn text-2xl animate-bounce';
-                    }
-
-                    // Animate banner slide down
-                    banner.classList.remove('-translate-y-full');
-                    banner.classList.add('translate-y-0');
-                } else {
-                    // Animate banner slide up
-                    banner.classList.remove('translate-y-0');
-                    banner.classList.add('-translate-y-full');
-                    // Background handled by left_panel settings
-                }
-            } catch (error) {
-                console.error('Error loading announcements:', error);
-            }
-        }
-
-        // Load left panel data
-        async function loadLeftPanelData() {
-            try {
-                // Add cache-busting parameter to ensure fresh data
-                const response = await fetch('data/left_panel.json?v=' + Date.now(), {
-                    cache: 'no-cache',
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    }
-                });
-                const data = await response.json();
-
-                // Handle weather section
-                const weatherSection = document.getElementById('weather-section');
-                if (data.weather_enabled) {
-                    weatherSection.style.opacity = '1';
-                    weatherSection.style.pointerEvents = 'auto';
-                    weatherSection.style.transform = 'scale(1)';
-                    fetchMabalacatWeather();
-                } else {
-                    weatherSection.style.opacity = '0';
-                    weatherSection.style.pointerEvents = 'none';
-                    weatherSection.style.transform = 'scale(0.95)';
-                }
-
-                // Handle 2D Background
-                const bgCanvas = document.getElementById('animationCanvas');
-                if (data.background_enabled !== false) { // Default to true
-                    startInfiniteBackground();
-                    if (bgCanvas) bgCanvas.style.opacity = '1';
-                } else {
-                    if (bgCanvas) bgCanvas.style.opacity = '0';
-                }
-
-                // Handle announcements as carousel
-                const announcementsContainer = document.getElementById('left-panel-announcements');
-                const enabledAnnouncements = data.announcements.filter(a => a.enabled && a.type === 'image');
-
-                if (enabledAnnouncements.length > 0) {
-                    announcementsContainer.innerHTML = `
-                    <div class="relative group">
-                        <!-- Carousel Container -->
-                        <div id="announcements-carousel" class="overflow-hidden rounded-[2.5rem]">
-                            <div id="announcements-slides" class="flex transition-transform duration-500 ease-in-out">
-                                ${enabledAnnouncements.map((announcement, index) => {
-                        // Check if image is in uploads directory (uploaded images have specific naming pattern)
-                        const isUploadedImage = announcement.image.startsWith('announcement_') && (announcement.image.includes('.jpg') || announcement.image.includes('.png') || announcement.image.includes('.gif'));
-                        const imagePath = isUploadedImage ? 'uploads/' + announcement.image : announcement.image;
-                        console.log('Announcement:', announcement.title, 'Image path:', imagePath, 'Is uploaded:', isUploadedImage);
-                        return `
-                                        <div class="announcement-slide flex-shrink-0 w-full group relative cursor-pointer" onclick="openImageModal('${imagePath}')">
-                                            <div class="bg-slate-100/50 p-2 rounded-[2.5rem] border border-slate-200 transition-all group-hover:bg-white shadow-sm">
-                                                <div class="relative overflow-hidden rounded-[2.2rem]" style="aspect-ratio: 4/5;">
-                                                    <img src="${imagePath}" alt="${announcement.title}" class="w-full h-full object-cover transition-all duration-700 group-hover:scale-110" onerror="this.src='assets/logo.jpg'; this.alt='Image failed to load: ${imagePath}'">
-                                                </div>
-                                                <div class="px-5 py-5 text-center">
-                                                    <p class="text-[11px] font-extrabold text-gray-800 leading-snug uppercase">${announcement.title}</p>
-                                                    <p class="text-[8px] text-gray-500 break-all">${imagePath}</p>
-                                                    ${announcement.subtitle ? `<p class="text-[9px] font-bold text-pink-500 mt-2 uppercase tracking-widest">${announcement.subtitle}</p>` : ''}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `;
-                    }).join('')}
-                            </div>
-                        </div>
-
-                        <!-- Navigation Arrows -->
-                        ${enabledAnnouncements.length > 1 ? `
-                            <button id="announcement-prev" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full shadow-lg flex items-center justify-center text-pink-600 hover:text-pink-700 transition-all duration-200 opacity-0 group-hover:opacity-100 z-10">
-                                <i class="fa-solid fa-chevron-left text-sm"></i>
-                            </button>
-                            <button id="announcement-next" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full shadow-lg flex items-center justify-center text-pink-600 hover:text-pink-700 transition-all duration-200 opacity-0 group-hover:opacity-100 z-10">
-                                <i class="fa-solid fa-chevron-right text-sm"></i>
-                            </button>
-
-                            <!-- Dots Indicator -->
-                            <div class="flex justify-center mt-3 space-x-2">
-                                ${enabledAnnouncements.map((_, index) => `
-                                    <button class="announcement-dot w-2 h-2 rounded-full transition-all duration-300 ${index === 0 ? 'bg-pink-500' : 'bg-pink-200'} cursor-pointer"></button>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-
-                    // Initialize carousel if there are multiple announcements
-                    if (enabledAnnouncements.length > 1) {
-                        initializeAnnouncementCarousel(enabledAnnouncements.length);
-                    }
-                } else {
-                    announcementsContainer.innerHTML = '';
-                }
-
-                // Handle logos
-                const logosContainer = document.getElementById('left-panel-logos');
-                logosContainer.innerHTML = '';
-
-                data.logos.forEach(logo => {
-                    if (!logo.enabled) return;
-
-                    const logoEl = document.createElement('img');
-                    logoEl.src = logo.image;
-                    logoEl.alt = logo.alt;
-                    logoEl.className = 'max-w-[120px] h-auto opacity-80 hover:opacity-100 transition-opacity';
-                    logosContainer.appendChild(logoEl);
-                });
-
-            } catch (error) {
-                console.error('Error loading left panel data:', error);
-            }
-        }
-
-        // Load apps and folders
-        let globalAppsData = [];
-        let globalFoldersData = [];
-
-        async function loadApps() {
-            try {
-                const timestamp = Date.now();
-
-                // Fetch both apps and folders
-                const [appsRes, foldersRes] = await Promise.all([
-                    fetch('data/apps.json?v=' + timestamp, { cache: 'no-cache' }),
-                    fetch('data/folders.json?v=' + timestamp, { cache: 'no-cache' })
-                ]);
-
-                const apps = await appsRes.json();
-                const folders = await foldersRes.json();
-
-                globalAppsData = apps;
-                globalFoldersData = folders;
-
-                renderMainGrid(apps, folders);
-
-            } catch (error) {
-                console.error('Error loading apps/folders:', error);
-            }
-        }
-
-        function renderMainGrid(apps, folders) {
-            const cardGrid = document.getElementById('cardGrid');
-            cardGrid.innerHTML = '';
-
-            const enabledFolders = folders.filter(f => f.enabled).sort((a, b) => a.order - b.order);
-            const folderMap = new Map();
-
-            // Initialize folder map
-            enabledFolders.forEach(folder => {
-                folderMap.set(folder.name, []);
-            });
-
-            const looseApps = [];
-
-            // Distribute apps
-            const enabledApps = apps.filter(app => app.enabled).sort((a, b) => a.order - b.order);
-
-            enabledApps.forEach(app => {
-                if (app.folder && folderMap.has(app.folder)) {
-                    folderMap.get(app.folder).push(app);
-                } else {
-                    looseApps.push(app);
-                }
-            });
-
-            // 1. Render Folders
-            enabledFolders.forEach(folder => {
-                const folderApps = folderMap.get(folder.name);
-
-                // Skip folders with no apps
-                if (!folderApps || folderApps.length === 0) {
+                if (data.error) {
+                    console.error('Portal Data Error:', data.error);
                     return;
                 }
 
-                const folderCard = document.createElement('div');
-                folderCard.className = 'portal-card h-full min-h-[280px] rounded-[2rem] sm:rounded-[3rem] md:rounded-[3.5rem] p-6 sm:p-8 md:p-10 flex flex-col';
+                // 1. Handle Announcement Banner
+                renderAnnouncement(data.announcement);
 
-                // Create row preview (up to 3 items)
-                const miniGridHtml = folderApps.slice(0, 3).map(app => `
-                <div class="w-12 h-12 sm:w-14 sm:h-14 bg-${app.color}-100 rounded-2xl flex items-center justify-center transition-transform hover:scale-110">
-                    <i class="fa-solid ${app.icon} text-${app.color}-500 text-lg sm:text-xl"></i>
-                </div>
-            `).join('');
+                // 2. Handle Left Panel (Settings & Toggles)
+                renderLeftPanel(data.left_panel);
 
-                folderCard.innerHTML = `
-                <div class="absolute top-6 right-6 text-gray-200">
-                    <i class="fa-solid fa-folder-open text-2xl"></i>
-                </div>
+                // 3. Handle Apps & Folders Grid
+                renderMainGrid(data.apps, data.folders);
 
-                <div class="icon-preview-area flex justify-start gap-3 w-full mb-8">
-                        ${miniGridHtml}
-                </div>
-                
-                <div class="text-left mt-auto mb-2">
-                    <h3 class="text-xl sm:text-2xl font-extrabold text-gray-800 leading-tight">${folder.name}</h3>
-                    <p class="text-pink-500 font-bold text-[10px] sm:text-xs uppercase tracking-[0.15em] mt-1">${folderApps.length} APPS</p>
-                </div>
-            `;
-
-                folderCard.onclick = () => openFolder(folder.name, folderApps);
-
-                cardGrid.appendChild(folderCard);
-            });
-
-            // 2. Render Loose Apps
-            looseApps.forEach(app => {
-                const cardEl = document.createElement('div');
-                cardEl.onclick = () => window.open(app.link, '_blank');
-                cardEl.className = 'portal-card h-full min-h-[280px] rounded-[2rem] sm:rounded-[3rem] md:rounded-[3.5rem] p-6 sm:p-8 md:p-10 flex flex-col';
-                cardEl.innerHTML = `
-                <div class="app-icon-container w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-${app.color}-50 text-${app.color}-500 rounded-2xl sm:rounded-3xl flex items-center justify-center mb-4 sm:mb-6 md:mb-8 shadow-inner">
-                    <i class="fa-solid ${app.icon} text-2xl sm:text-3xl"></i>
-                </div>
-                <h3 class="text-lg sm:text-xl md:text-2xl font-extrabold text-gray-800 mb-2 sm:mb-3">${app.title}</h3>
-                <p class="text-slate-500 font-medium text-xs sm:text-sm leading-relaxed">${app.description}</p>
-            `;
-
-                cardGrid.appendChild(cardEl);
-            });
-        }
-
-        function openFolder(folderName, apps) {
-            const overlay = document.getElementById('folderOverlay');
-            const title = document.getElementById('folderTitle');
-            const grid = document.getElementById('folderAppsGrid');
-
-            title.textContent = folderName;
-            grid.innerHTML = '';
-
-            apps.forEach(app => {
-                const cardEl = document.createElement('div');
-                cardEl.onclick = (e) => {
-                    e.stopPropagation();
-                    window.open(app.link, '_blank');
-                };
-                cardEl.className = 'flex flex-col items-center cursor-pointer w-[120px] sm:w-[140px]';
-                cardEl.innerHTML = `
-                <div class="folder-app-icon-container w-20 h-20 sm:w-24 sm:h-24 bg-${app.color}-50 rounded-[2rem] flex items-center justify-center mb-4 shadow-sm">
-                    <i class="fa-solid ${app.icon} text-${app.color}-500 text-3xl sm:text-4xl"></i>
-                </div>
-                <h4 class="font-extrabold text-gray-800 text-center text-sm sm:text-base leading-tight w-full">${app.title}</h4>
-            `;
-
-                // GSAP Hover for modal items
-                const iconContainer = cardEl.querySelector('.folder-app-icon-container');
-                cardEl.addEventListener('mouseenter', () => {
-                    gsap.to(iconContainer, {
-                        scale: 1.15,
-                        y: -4,
-                        duration: 0.3,
-                        ease: "power2.out"
-                    });
-                });
-                cardEl.addEventListener('mouseleave', () => {
-                    gsap.to(iconContainer, {
-                        scale: 1,
-                        y: 0,
-                        duration: 0.3,
-                        ease: "power2.out"
-                    });
-                });
-
-                grid.appendChild(cardEl);
-            });
-
-            overlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeFolder() {
-            const overlay = document.getElementById('folderOverlay');
-            overlay.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-
-        function closeAnnouncement() {
-            const banner = document.getElementById('announcement-banner');
-            banner.classList.remove('translate-y-0');
-            banner.classList.add('-translate-y-full');
-        }
-
-
-        // Announcement carousel functionality
-        let announcementCarouselInterval;
-        let currentAnnouncementSlide = 0;
-
-        function initializeAnnouncementCarousel(totalSlides) {
-            const carousel = document.getElementById('announcements-slides');
-            const prevBtn = document.getElementById('announcement-prev');
-            const nextBtn = document.getElementById('announcement-next');
-            const dots = document.querySelectorAll('.announcement-dot');
-
-            function updateCarousel() {
-                carousel.style.transform = `translateX(-${currentAnnouncementSlide * 100}%)`;
-
-                // Update dots
-                dots.forEach((dot, index) => {
-                    dot.classList.toggle('bg-pink-500', index === currentAnnouncementSlide);
-                    dot.classList.toggle('bg-pink-200', index !== currentAnnouncementSlide);
-                });
-            }
-
-            function nextSlide() {
-                currentAnnouncementSlide = (currentAnnouncementSlide + 1) % totalSlides;
-                updateCarousel();
-            }
-
-            function prevSlide() {
-                currentAnnouncementSlide = (currentAnnouncementSlide - 1 + totalSlides) % totalSlides;
-                updateCarousel();
-            }
-
-            function goToSlide(slideIndex) {
-                currentAnnouncementSlide = slideIndex;
-                updateCarousel();
-            }
-
-            // Event listeners
-            if (nextBtn) nextBtn.addEventListener('click', nextSlide);
-            if (prevBtn) prevBtn.addEventListener('click', prevSlide);
-
-            // Dot navigation
-            dots.forEach((dot, index) => {
-                dot.addEventListener('click', () => goToSlide(index));
-            });
-
-            // Auto-rotation every 5 seconds
-            if (announcementCarouselInterval) {
-                clearInterval(announcementCarouselInterval);
-            }
-            announcementCarouselInterval = setInterval(nextSlide, 5000);
-
-            // Pause auto-rotation on hover
-            const carouselContainer = document.getElementById('announcements-carousel').parentElement;
-            carouselContainer.addEventListener('mouseenter', () => {
-                clearInterval(announcementCarouselInterval);
-            });
-            carouselContainer.addEventListener('mouseleave', () => {
-                announcementCarouselInterval = setInterval(nextSlide, 5000);
-            });
-
-            // Show/hide navigation on hover
-            carouselContainer.addEventListener('mouseenter', () => {
-                if (prevBtn) prevBtn.style.opacity = '1';
-                if (nextBtn) nextBtn.style.opacity = '1';
-            });
-            carouselContainer.addEventListener('mouseleave', () => {
-                if (prevBtn) prevBtn.style.opacity = '0';
-                if (nextBtn) nextBtn.style.opacity = '0';
-            });
-        }
-
-        // Fullscreen introduction animation
-        function startIntroAnimation() {
-            const introElement = document.getElementById('fullscreenIntro');
-
-            // Main content is already visible underneath with lower z-index
-
-            // Start the screen swipe animation after a brief delay
-            setTimeout(() => {
-                introElement.classList.add('screen-swipe-up');
-            }, 800); // Show title for 0.8 seconds before swiping
-
-            // After swipe animation completes, remove intro overlay
-            setTimeout(() => {
-                introElement.style.display = 'none';
-            }, 1600); // 0.8s delay + 0.8s animation = 1.6s total
-        }
-
-        // Track current data states for change detection
-        let currentAnnouncementData = null;
-        let currentLeftPanelData = null;
-        let currentAppsData = null;
-        let currentFoldersData = null;
-
-        // Function to check if data has changed
-        async function checkForUpdates() {
-            try {
-                // Check announcements
-                const announcementsResponse = await fetch('data/announcements.json?v=' + Date.now(), {
-                    cache: 'no-cache'
-                });
-                const newAnnouncementData = await announcementsResponse.json();
-
-                // Check left panel
-                const leftPanelResponse = await fetch('data/left_panel.json?v=' + Date.now(), {
-                    cache: 'no-cache'
-                });
-                const newLeftPanelData = await leftPanelResponse.json();
-
-                // Check apps & folders
-                const appsResponse = await fetch('data/apps.json?v=' + Date.now(), { cache: 'no-cache' });
-                const newAppsData = await appsResponse.json();
-
-                const foldersResponse = await fetch('data/folders.json?v=' + Date.now(), { cache: 'no-cache' });
-                const newFoldersData = await foldersResponse.json();
-
-                // Compare and update announcements
-                if (JSON.stringify(newAnnouncementData) !== JSON.stringify(currentAnnouncementData)) {
-                    currentAnnouncementData = newAnnouncementData;
-                    loadAnnouncements();
-                    showUpdateNotification('Announcements updated');
-                    console.log('Announcements updated from admin changes');
+                // Update state for change detection
+                if (JSON.stringify(data) !== JSON.stringify(lastPortalState) && !isInitial) {
+                    showUpdateNotification('Portal updated with fresh data');
                 }
-
-                // Compare and update left panel
-                if (JSON.stringify(newLeftPanelData) !== JSON.stringify(currentLeftPanelData)) {
-                    currentLeftPanelData = newLeftPanelData;
-                    loadLeftPanelData();
-                    showUpdateNotification('Portal settings updated');
-                    console.log('Left panel updated from admin changes');
-                }
-
-                // Compare and update apps OR folders
-                if (JSON.stringify(newAppsData) !== JSON.stringify(currentAppsData) ||
-                    JSON.stringify(newFoldersData) !== JSON.stringify(currentFoldersData)) {
-
-                    currentAppsData = newAppsData;
-                    currentFoldersData = newFoldersData;
-                    loadApps();
-                    showUpdateNotification('Apps layout updated');
-                    console.log('Apps updated from admin changes');
-                }
+                lastPortalState = data;
 
             } catch (error) {
-                console.error('Error checking for updates:', error);
-                // Fallback: refresh everything if there's an error
-                loadAnnouncements();
-                loadLeftPanelData();
-                loadApps();
+                console.error('Error refreshing portal data:', error);
             }
         }
+
+        function renderAnnouncement(data) {
+            const banner = document.getElementById('announcement-banner');
+            const title = document.getElementById('announcement-title');
+            const message = document.getElementById('announcement-message');
+            const icon = document.getElementById('announcement-icon');
+
+            if (data && data.active && data.title && data.message) {
+                title.textContent = data.title;
+                message.textContent = data.message;
+                
+                // Set icon based on type
+                icon.className = 'fa-solid text-2xl animate-bounce ' + 
+                    (data.type === 'warning' ? 'fa-triangle-exclamation' : 
+                     data.type === 'success' ? 'fa-check-circle' : 
+                     data.type === 'error' ? 'fa-times-circle' : 'fa-bullhorn');
+
+                banner.classList.remove('-translate-y-full');
+                banner.classList.add('translate-y-0');
+            } else {
+                banner.classList.remove('translate-y-0');
+                banner.classList.add('-translate-y-full');
+            }
+        }
+
+        function renderLeftPanel(data) {
+            // Handle weather section
+            const weatherSection = document.getElementById('weather-section');
+            if (data.weather_enabled) {
+                weatherSection.style.opacity = '1';
+                weatherSection.style.pointerEvents = 'auto';
+                weatherSection.style.transform = 'scale(1)';
+                if (typeof fetchMabalacatWeather === 'function') fetchMabalacatWeather();
+            } else {
+                weatherSection.style.opacity = '0';
+                weatherSection.style.pointerEvents = 'none';
+                weatherSection.style.transform = 'scale(0.95)';
+            }
+
+            // Handle 2D Background
+            const bgCanvas = document.getElementById('animationCanvas');
+            if (data.background_enabled !== false) {
+                if (typeof startInfiniteBackground === 'function') startInfiniteBackground();
+                if (bgCanvas) bgCanvas.style.opacity = '1';
+            } else {
+                if (bgCanvas) bgCanvas.style.opacity = '0';
+            }
+            
+            // Note: Panel announcements/logos logic can be added here if migrated to DB later
+        }
+
+        // Global state for change detection
+        let lastPortalState = null;
 
         // Initialize everything on page load
         document.addEventListener('DOMContentLoaded', async function () {
             // Load all data immediately while intro plays
-            await loadAnnouncements();
-            await loadLeftPanelData();
-            await loadApps();
+            await refreshPortalData(true);
 
-            // Initialize current data states for comparison
-            try {
-                const announcementsResponse = await fetch('data/announcements.json?v=' + Date.now());
-                currentAnnouncementData = await announcementsResponse.json();
-
-                const leftPanelResponse = await fetch('data/left_panel.json?v=' + Date.now());
-                currentLeftPanelData = await leftPanelResponse.json();
-
-                const appsResponse = await fetch('data/apps.json?v=' + Date.now());
-                currentAppsData = await appsResponse.json();
-
-                const foldersResponse = await fetch('data/folders.json?v=' + Date.now());
-                currentFoldersData = await foldersResponse.json();
-            } catch (error) {
-                console.error('Error initializing data states:', error);
-            }
-
-            // Check for updates every 3 seconds (very responsive to admin changes)
-            setInterval(checkForUpdates, 3000);
+            // Check for updates every 10 seconds (optimized for DB)
+            setInterval(() => refreshPortalData(false), 10000);
 
             // Function to show update notifications
             function showUpdateNotification(message) {

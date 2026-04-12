@@ -1,54 +1,49 @@
 <?php
+/**
+ * Save Announcement - Database Version
+ * Replaces JSON-based storage with Supabase PostgreSQL.
+ */
 header('Content-Type: application/json');
 
-// Production settings
-// Production settings
-error_reporting(E_ALL);
-ini_set('display_errors', 0); // Disable for production
-ini_set('log_errors', 1);
-ini_set('error_log', '../data/api_error.log');
+require_once __DIR__ . '/../connection/database.php';
 
-
+// Only allow POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
     exit;
 }
 
+// Get input
 $input = json_decode(file_get_contents('php://input'), true);
 
-// Process the request normally
-
-// For toggling active state, we don't require title/message to be filled
-// Only require them for full form submission
-if (!isset($input['active'])) {
-    if (empty($input['title']) || empty($input['message'])) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Title and message are required']);
-        exit;
-    }
+if (!$input) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid JSON input']);
+    exit;
 }
 
-$data = [
-    'active' => $input['active'] ?? false,
-    'title' => trim($input['title'] ?? ''),
-    'message' => trim($input['message'] ?? ''),
-    'created_at' => $input['created_at'] ?? date('c'),
-    'updated_at' => $input['updated_at'] ?? date('c')
-];
-
 try {
-    $result = file_put_contents('../data/announcements.json', json_encode($data, JSON_PRETTY_PRINT));
+    // For now, we only have one announcement (top banner)
+    // We'll update the first one or create it if missing
+    $query = "INSERT INTO fcl_announcements (id, active, title, message, updated_at)
+              VALUES (1, ?, ?, ?, NOW())
+              ON CONFLICT (id) DO UPDATE SET 
+                active = EXCLUDED.active,
+                title = EXCLUDED.title,
+                message = EXCLUDED.message,
+                updated_at = NOW()";
+    
+    $stmt = $conn->prepare($query);
+    $stmt->execute([
+        $input['active'] ?? false,
+        trim($input['title'] ?? ''),
+        trim($input['message'] ?? '')
+    ]);
 
-    if ($result === false) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to save announcement']);
-        exit;
-    }
-
-    echo json_encode(['success' => true, 'message' => 'Announcement saved successfully']);
-} catch (Exception $e) {
+    echo json_encode(['success' => true, 'message' => 'Announcement saved successfully to database']);
+} catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
 }
 ?>

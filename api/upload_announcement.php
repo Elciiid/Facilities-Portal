@@ -1,12 +1,15 @@
 <?php
+/**
+ * Upload Announcement - Supabase Storage Version
+ * Handles image uploads and metadata persistence in PostgreSQL.
+ */
 header('Content-Type: application/json');
+require_once __DIR__ . '/../connection/database.php';
 
-// Disable display of errors to prevent JSON corruption
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-ini_set('error_log', '../data/api_error.log');
-
+// Supabase Configuration from Environment
+$supabaseUrl = getenv('SUPABASE_URL');
+$serviceRoleKey = getenv('SUPABASE_SERVICE_ROLE_KEY');
+$bucketName = 'fcl_assets'; // We'll assume this bucket exists or needs to be created
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -14,106 +17,77 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Create uploads directory if it doesn't exist
-$uploadDir = '../uploads/';
-if (!is_dir($uploadDir)) {
-    mkdir($uploadDir, 0755, true);
-}
-
-// Handle file upload
-$uploadedFile = '';
-if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-    $fileTmpPath = $_FILES['image']['tmp_name'];
-    $fileName = $_FILES['image']['name'];
-    $fileSize = $_FILES['image']['size'];
-    $fileType = $_FILES['image']['type'];
-
-    // Validate file type
-    $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-    if (!in_array($fileType, $allowedTypes)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid file type. Only JPG, PNG, and GIF are allowed.']);
-        exit;
-    }
-
-    // Validate file size (5MB max)
-    if ($fileSize > 5 * 1024 * 1024) {
-        http_response_code(400);
-        echo json_encode(['error' => 'File size too large. Maximum 5MB allowed.']);
-        exit;
-    }
-
-    // Generate unique filename
-    $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
-    $newFileName = 'announcement_' . time() . '_' . uniqid() . '.' . $fileExtension;
-    $destPath = $uploadDir . $newFileName;
-
-    if (move_uploaded_file($fileTmpPath, $destPath)) {
-        $uploadedFile = $newFileName;
-    } else {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to save uploaded file']);
-        exit;
-    }
-}
-
-$input = $_POST;
-
-// Validate required fields
-if (empty($input['title'])) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Title is required']);
-    exit;
-}
-
 try {
-    // Load current left panel data
-    $leftPanelData = json_decode(file_get_contents('../data/left_panel.json'), true);
+    $title = $_POST['title'] ?? 'Untitled';
+    $subtitle = $_POST['subtitle'] ?? '';
+    $id = $_POST['id'] ?? ('announcement_' . time());
+    $imageUrl = '';
 
-    if (!$leftPanelData) {
-        $leftPanelData = ['weather_enabled' => true, 'announcements' => [], 'logos' => []];
-    }
+    // Handle File Upload
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['image'];
+        $fileName = $id . '_' . basename($file['name']);
+        
+        // 1. Upload to Supabase Storage via REST API
+        if ($supabaseUrl && $serviceRoleKey) {
+            $uploadUrl = "$supabaseUrl/storage/v1/object/$bucketName/$fileName";
+            
+            $ch = curl_init($uploadUrl);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents($file['tmp_name']));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Authorization: Bearer $serviceRoleKey",
+                "Content-Type: " . $file['type'],
+                "x-upsert: true"
+            ]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
 
-    $announcementData = [
-        'id' => $input['id'] ?: ('announcement_' . time() . '_' . uniqid()),
-        'type' => $input['type'] ?: 'image',
-        'title' => trim($input['title']),
-        'subtitle' => trim($input['subtitle'] ?? ''),
-        'image' => $uploadedFile ?: $input['existing_image'] ?? '',
-        'enabled' => isset($input['enabled']) ? (bool) $input['enabled'] : true
-    ];
-
-    // Find existing announcement or add new one
-    $foundIndex = -1;
-    foreach ($leftPanelData['announcements'] as $index => $announcement) {
-        if ($announcement['id'] === $announcementData['id']) {
-            $foundIndex = $index;
-            break;
+            if ($httpCode >= 200 && $httpCode < 300) {
+                // Successfully uploaded to Supabase Storage
+                // The URL is usually: {supabase_url}/storage/v1/object/public/{bucket}/{name}
+                $imageUrl = "$supabaseUrl/storage/v1/object/public/$bucketName/$fileName";
+            } else {
+                error_log("Supabase Upload Error ($httpCode): " . $response);
+                // Fallback to local (ephemeral) for demo purposes if storage fails
+                $uploadDir = '../uploads/';
+                if (move_uploaded_file($file['tmp_name'], $uploadDir . $fileName)) {
+                    $imageUrl = 'uploads/' + $fileName;
+                }
+            }
         }
-    }
-
-    if ($foundIndex >= 0) {
-        // Update existing announcement
-        $leftPanelData['announcements'][$foundIndex] = $announcementData;
     } else {
-        // Add new announcement
-        $leftPanelData['announcements'][] = $announcementData;
+        // Use existing image if provided
+        $imageUrl = $_POST['existingImage'] ?? '';
     }
 
-    // Save updated data
-    $result = file_put_contents('../data/left_panel.json', json_encode($leftPanelData, JSON_PRETTY_PRINT));
-
-    if ($result === false) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to save announcement']);
-        exit;
-    }
+    // 2. Persist Metadata in fcl_announcements or a new table
+    // For simplicity, we'll use a type column to distinguish banner vs carousel
+    $query = "INSERT INTO fcl_announcements (title, message, type, active, updated_at)
+              VALUES (?, ?, 'carousel_image', true, NOW())";
+    
+    // We'll store the image URL in the 'message' field OR we should have a better schema.
+    // Let's use a dedicated table for cleanliness.
+    $query = "INSERT INTO fcl_carousel_announcements (id, title, subtitle, image_url, enabled)
+              VALUES (?, ?, ?, ?, true)
+              ON CONFLICT (id) DO UPDATE SET 
+                title = EXCLUDED.title,
+                subtitle = EXCLUDED.subtitle,
+                image_url = EXCLUDED.image_url,
+                enabled = EXCLUDED.enabled";
+    
+    $stmt = $conn->prepare($query);
+    $stmt->execute([$id, $title, $subtitle, $imageUrl]);
 
     echo json_encode([
-        'success' => true,
-        'message' => 'Announcement saved successfully',
-        'image' => $uploadedFile
+        'success' => true, 
+        'message' => 'Announcement uploaded and saved to database',
+        'imageUrl' => $imageUrl
     ]);
+
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);

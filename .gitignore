@@ -1,0 +1,7 @@
+.env
+.vercel/
+node_modules/
+/uploads/*
+!/uploads/.gitkeep
+api_error.log
+data/*.log

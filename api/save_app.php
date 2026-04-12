@@ -1,138 +1,98 @@
 <?php
+/**
+ * Save App - Database Version
+ */
 header('Content-Type: application/json');
+require_once __DIR__ . '/../connection/database.php';
 
-// Disable display of errors to prevent JSON corruption
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-ini_set('error_log', '../data/api_error.log');
-
-
+// Only allow POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
     exit;
 }
 
+// Get input
 $input = json_decode(file_get_contents('php://input'), true);
-
 if (!$input) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid JSON input']);
     exit;
 }
 
-// Check if this is a toggle operation (only updating enabled state)
+$id = $input['id'] ?? '';
 $isToggle = isset($input['isToggle']) && $input['isToggle'];
 
-if ($isToggle) {
-    // For toggle operations, only id and enabled are required
-    if (empty($input['id'])) {
-        http_response_code(400);
-        echo json_encode(['error' => 'App ID is required']);
-        exit;
-    }
-} else {
-    // For full save operations, all fields are required
-    $requiredFields = ['id', 'title', 'description', 'icon', 'color', 'link'];
-    foreach ($requiredFields as $field) {
-        if (empty($input[$field])) {
-            http_response_code(400);
-            echo json_encode(['error' => ucfirst($field) . ' is required']);
-            exit;
-        }
-    }
+if (empty($id)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'App ID is required']);
+    exit;
 }
 
 try {
-    // Load current apps data
-    $apps = json_decode(file_get_contents('../data/apps.json'), true);
-
-    if (!$apps) {
-        $apps = [];
-    }
-
-    // Find existing app or add new one
-    $foundIndex = -1;
-    foreach ($apps as $index => $app) {
-        if ($app['id'] === $input['id']) {
-            $foundIndex = $index;
-            break;
-        }
-    }
-
-    // Calculate order - if not provided or if it's a new app, use next available number
-    $order = isset($input['order']) && $input['order'] !== '' ? (int) $input['order'] : null;
-    if ($order === null || $foundIndex < 0) {
-        // Find the highest order number and add 1
-        $maxOrder = 0;
-        foreach ($apps as $app) {
-            if ($app['order'] > $maxOrder) {
-                $maxOrder = $app['order'];
-            }
-        }
-        $order = $maxOrder + 1;
-    }
-
-    if ($foundIndex >= 0) {
-        if ($isToggle) {
-            // For toggle operations, only update the enabled field
-            $apps[$foundIndex]['enabled'] = $input['enabled'] ?? false;
-        } else {
-            // Update existing app with full data
-            $appData = [
-                'id' => $input['id'],
-                'title' => trim($input['title']),
-                'folder' => trim($input['folder'] ?? ''),
-                'description' => trim($input['description']),
-                'icon' => trim($input['icon']),
-                'color' => $input['color'],
-                'link' => trim($input['link']),
-                'enabled' => $input['enabled'] ?? true,
-                'order' => $order
-            ];
-            $apps[$foundIndex] = $appData;
-        }
-    } else {
-        if ($isToggle) {
-            // Cannot toggle an app that doesn't exist
+    if ($isToggle) {
+        // Toggle operation
+        $stmt = $conn->prepare("UPDATE fcl_apps SET enabled = ? WHERE id = ?");
+        $stmt->execute([
+            isset($input['enabled']) ? (bool)$input['enabled'] : false,
+            $id
+        ]);
+        
+        if ($stmt->rowCount() === 0) {
             http_response_code(404);
             echo json_encode(['error' => 'App not found']);
             exit;
-        } else {
-            // Add new app
-            $appData = [
-                'id' => $input['id'],
-                'title' => trim($input['title']),
-                'folder' => trim($input['folder'] ?? ''),
-                'description' => trim($input['description']),
-                'icon' => trim($input['icon']),
-                'color' => $input['color'],
-                'link' => trim($input['link']),
-                'enabled' => $input['enabled'] ?? true,
-                'order' => $order
-            ];
-            $apps[] = $appData;
         }
+    } else {
+        // Full save (Insert or Update)
+        // Ensure folder exists or set to NULL
+        $folder = !empty($input['folder']) ? $input['folder'] : null;
+        if ($folder) {
+            $stmt = $conn->prepare("SELECT name FROM fcl_folders WHERE name = ?");
+            $stmt->execute([$folder]);
+            if (!$stmt->fetch()) {
+                // If folder doesn't exist, create it if you want, or just set to null
+                $folder = null; 
+            }
+        }
+
+        // Calculate order if not provided
+        $order = isset($input['order']) && $input['order'] !== '' ? (int)$input['order'] : null;
+        if ($order === null) {
+            $stmt = $conn->query("SELECT MAX(\"order\") FROM fcl_apps");
+            $maxOrder = $stmt->fetchColumn();
+            $order = ($maxOrder !== null) ? $maxOrder + 1 : 1;
+        }
+
+        $query = "INSERT INTO fcl_apps (id, title, description, icon, color, link, folder_name, enabled, \"order\")
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  ON CONFLICT (id) DO UPDATE SET 
+                    title = EXCLUDED.title,
+                    description = EXCLUDED.description,
+                    icon = EXCLUDED.icon,
+                    color = EXCLUDED.color,
+                    link = EXCLUDED.link,
+                    folder_name = EXCLUDED.folder_name,
+                    enabled = EXCLUDED.enabled,
+                    \"order\" = EXCLUDED.\"order\"";
+        
+        $stmt = $conn->prepare($query);
+        $stmt->execute([
+            $id,
+            trim($input['title'] ?? ''),
+            trim($input['description'] ?? ''),
+            trim($input['icon'] ?? ''),
+            $input['color'] ?? 'slate',
+            trim($input['link'] ?? ''),
+            $folder,
+            isset($input['enabled']) ? (bool)$input['enabled'] : true,
+            $order
+        ]);
     }
 
-    // Sort apps by order
-    usort($apps, function ($a, $b) {
-        return $a['order'] <=> $b['order'];
-    });
-
-    // Save updated apps data
-    $result = file_put_contents('../data/apps.json', json_encode($apps, JSON_PRETTY_PRINT));
-
-    if ($result === false) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to save app']);
-        exit;
-    }
-
-    echo json_encode(['success' => true, 'message' => 'App saved successfully']);
-} catch (Exception $e) {
+    echo json_encode(['success' => true, 'message' => 'App saved successfully to database']);
+} catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
 }
 ?>

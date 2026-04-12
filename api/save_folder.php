@@ -1,12 +1,9 @@
 <?php
+/**
+ * Save Folder - Database Version
+ */
 header('Content-Type: application/json');
-
-// Disable display of errors to prevent JSON corruption
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-ini_set('error_log', '../data/api_error.log');
-
+require_once __DIR__ . '/../connection/database.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -15,7 +12,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
-
 if (!$input || empty($input['name'])) {
     http_response_code(400);
     echo json_encode(['error' => 'Folder name is required']);
@@ -23,46 +19,41 @@ if (!$input || empty($input['name'])) {
 }
 
 try {
-    $foldersFile = '../data/folders.json';
-    $folders = [];
+    // Check for toggle or full save
+    $isToggle = isset($input['isToggle']) && $input['isToggle'];
 
-    if (file_exists($foldersFile)) {
-        $folders = json_decode(file_get_contents($foldersFile), true);
-        if (!$folders)
-            $folders = [];
-    }
-
-    $folderName = trim($input['name']);
-    $enabled = $input['enabled'] ?? true;
-
-    $foundIndex = -1;
-    foreach ($folders as $index => $folder) {
-        if (strcasecmp($folder['name'], $folderName) === 0) {
-            $foundIndex = $index;
-            break;
+    if ($isToggle) {
+        $stmt = $conn->prepare("UPDATE fcl_folders SET enabled = ? WHERE name = ?");
+        $stmt->execute([
+            isset($input['enabled']) ? (bool)$input['enabled'] : false,
+            $input['name']
+        ]);
+    } else {
+        // Calculate order if not provided
+        $order = isset($input['order']) && $input['order'] !== '' ? (int)$input['order'] : null;
+        if ($order === null) {
+            $stmt = $conn->query("SELECT MAX(\"order\") FROM fcl_folders");
+            $maxOrder = $stmt->fetchColumn();
+            $order = ($maxOrder !== null) ? $maxOrder + 1 : 1;
         }
+
+        $query = "INSERT INTO fcl_folders (name, enabled, \"order\")
+                  VALUES (?, ?, ?)
+                  ON CONFLICT (name) DO UPDATE SET 
+                    enabled = EXCLUDED.enabled,
+                    \"order\" = EXCLUDED.\"order\"";
+        
+        $stmt = $conn->prepare($query);
+        $stmt->execute([
+            trim($input['name']),
+            isset($input['enabled']) ? (bool)$input['enabled'] : true,
+            $order
+        ]);
     }
 
-    if ($foundIndex >= 0) {
-        // Update existing
-        $folders[$foundIndex]['enabled'] = $enabled;
-    } else {
-        // Add new
-        $folders[] = [
-            'name' => $folderName,
-            'enabled' => $enabled,
-            'order' => count($folders) + 1
-        ];
-    }
-
-    if (file_put_contents($foldersFile, json_encode($folders, JSON_PRETTY_PRINT))) {
-        echo json_encode(['success' => true]);
-    } else {
-        throw new Exception('Failed to write to file');
-    }
-
-} catch (Exception $e) {
+    echo json_encode(['success' => true, 'message' => 'Folder saved successfully to database']);
+} catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
 }
 ?>

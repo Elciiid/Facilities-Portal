@@ -1,16 +1,25 @@
 <?php
-// Start session to ensure we can destroy it
-session_start();
+/**
+ * Admin Logout - Centralized Session Handling
+ */
+require_once __DIR__ . '/../connection/database.php';
 
-// Destroy all session data
-session_destroy();
+// Unset all session variables
+$_SESSION = array();
 
-// Clear any session cookies (optional, but good practice)
-if (isset($_COOKIE[session_name()])) {
-    setcookie(session_name(), '', time() - 3600, '/');
+// Destroy the session cookie
+if (ini_get("session.use_cookies")) {
+    $params = session_get_cookie_params();
+    setcookie(session_name(), '', time() - 42000,
+        $params["path"], $params["domain"],
+        $params["secure"], $params["httponly"]
+    );
 }
 
-// Redirect to portal instead of login to avoid confusion
-header("Location: ../portal.php");
+// Destroy the session in the database
+session_destroy();
+
+// Redirect to login page
+header("Location: /admin/admin_login.php");
 exit();
 ?>

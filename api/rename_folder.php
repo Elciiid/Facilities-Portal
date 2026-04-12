@@ -1,12 +1,9 @@
 <?php
+/**
+ * Rename Folder - Database Version
+ */
 header('Content-Type: application/json');
-
-// Disable display of errors to prevent JSON corruption
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-ini_set('error_log', '../data/api_error.log');
-
+require_once __DIR__ . '/../connection/database.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -15,76 +12,43 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
+$oldName = $input['oldName'] ?? '';
+$newName = $input['newName'] ?? '';
 
-if (!$input || empty($input['name']) || empty($input['original_name'])) {
+if (empty($oldName) || empty($newName)) {
     http_response_code(400);
-    echo json_encode(['error' => 'Folder name and original name are required']);
+    echo json_encode(['error' => 'Old and new names are required']);
     exit;
 }
 
 try {
-    $newName = trim($input['name']);
-    $originalName = trim($input['original_name']);
-    $enabled = $input['enabled'] ?? true;
+    $conn->beginTransaction();
 
-    // 1. Update folders.json
-    $foldersFile = '../data/folders.json';
-    if (file_exists($foldersFile)) {
-        $folders = json_decode(file_get_contents($foldersFile), true);
-        if ($folders) {
-            $found = false;
-            foreach ($folders as &$folder) {
-                if (strcasecmp($folder['name'], $originalName) === 0) {
-                    $folder['name'] = $newName;
-                    $folder['enabled'] = $enabled;
-                    $found = true;
-                    // Keep order
-                }
-            }
-            if (!$found) {
-                // Might be a folder that existed implicitly via apps but not in folders.json
-                $folders[] = [
-                    'name' => $newName,
-                    'enabled' => $enabled,
-                    'order' => count($folders) + 1
-                ];
-            }
-            file_put_contents($foldersFile, json_encode($folders, JSON_PRETTY_PRINT));
-        }
-    } else {
-        // Create new
-        $folders = [
-            [
-                'name' => $newName,
-                'enabled' => $enabled,
-                'order' => 1
-            ]
-        ];
-        file_put_contents($foldersFile, json_encode($folders, JSON_PRETTY_PRINT));
+    // 1. Create the new folder entry (copying settings)
+    $stmt = $conn->prepare("INSERT INTO fcl_folders (name, enabled, \"order\") 
+                            SELECT ?, enabled, \"order\" FROM fcl_folders WHERE name = ?");
+    $stmt->execute([$newName, $oldName]);
+
+    if ($stmt->rowCount() === 0) {
+        $conn->rollBack();
+        http_response_code(404);
+        echo json_encode(['error' => 'Folder not found']);
+        exit;
     }
 
-    // 2. Update apps.json (Renaming all apps in this folder)
-    $appsFile = '../data/apps.json';
-    if (file_exists($appsFile)) {
-        $apps = json_decode(file_get_contents($appsFile), true);
-        if ($apps) {
-            $updated = false;
-            foreach ($apps as &$app) {
-                if (isset($app['folder']) && strcasecmp($app['folder'], $originalName) === 0) {
-                    $app['folder'] = $newName;
-                    $updated = true;
-                }
-            }
-            if ($updated) {
-                file_put_contents($appsFile, json_encode($apps, JSON_PRETTY_PRINT));
-            }
-        }
-    }
+    // 2. Update all apps to point to the new folder name
+    $stmt = $conn->prepare("UPDATE fcl_apps SET folder_name = ? WHERE folder_name = ?");
+    $stmt->execute([$newName, $oldName]);
 
-    echo json_encode(['success' => true]);
+    // 3. Delete the old folder entry
+    $stmt = $conn->prepare("DELETE FROM fcl_folders WHERE name = ?");
+    $stmt->execute([$oldName]);
 
-} catch (Exception $e) {
+    $conn->commit();
+    echo json_encode(['success' => true, 'message' => 'Folder renamed successfully in database']);
+} catch (PDOException $e) {
+    if ($conn->inTransaction()) $conn->rollBack();
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
 }
 ?>

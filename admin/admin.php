@@ -8,63 +8,38 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <?php
-    session_start();
-    // Set timezone to ensure correct time display
-    date_default_timezone_set('Asia/Manila'); // Adjust timezone as needed
+    // 1. Initialize Database & Session (Centralized)
+    require_once __DIR__ . '/../connection/database.php';
     
     /**
-     * Helper function to get employee profile photo URL
-     * @param string $employee_number The employee ID/number
-     * @return string The photo URL or empty string if not found
+     * Helper function to get a premium dynamic avatar URL
+     * @param string $name The user's full name
+     * @return string The avatar URL
      */
-    function getEmployeePhotoUrl($employee_number)
+    function getEmployeePhotoUrl($name)
     {
-        if (empty($employee_number)) {
-            return '';
-        }
-
-        // Base URL for employee photos
-        $base_url = 'http://10.2.0.8/lrnph/emp_photos/';
-
-        // Try common image extensions
-        $extensions = ['jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG'];
-
-        // Return the first extension format (browser will handle 404 if not found)
-        // We'll use JavaScript to handle fallback on client side
-        return $base_url . htmlspecialchars($employee_number) . '.jpg';
+        $name = urlencode($name ?: 'User');
+        return "https://ui-avatars.com/api/?name=$name&background=db2777&color=fff&size=200&bold=true&format=svg";
     }
 
     /**
-     * Generate an img tag with fallback for employee photo
-     * @param string $employee_number The employee ID/number
+     * Generate an img tag for user avatar with dynamic fallback
+     * @param string $fullname The full name for the avatar
      * @param string $classes CSS classes for the img tag
-     * @param string $alt Alt text (defaults to employee number)
-     * @return string HTML img tag with fallback icon
+     * @return string HTML img tag
      */
-    function getEmployeePhotoImg($employee_number, $classes = '', $alt = '')
+    function getEmployeePhotoImg($fullname, $classes = '')
     {
-        if (empty($employee_number)) {
-            return '<i class="fa-solid fa-user text-gray-400"></i>';
-        }
-
-        $employee_id = htmlspecialchars($employee_number);
-        $alt_text = $alt ?: 'Employee ' . $employee_id;
+        $url = getEmployeePhotoUrl($fullname);
         $classes_attr = $classes ? ' class="' . htmlspecialchars($classes) . '"' : '';
-
-        // Base URL for employee photos
-        $base_url = 'http://10.2.0.8/lrnph/emp_photos/';
-
-        // Create img tag with JavaScript fallback that tries multiple extensions
-        $js_function = "tryPhotoExtensions('$employee_id', this)";
-
-        return '<img src="' . $base_url . $employee_id . '.jpg" alt="' . htmlspecialchars($alt_text) . '"' . $classes_attr . ' onerror="' . $js_function . '" /><i class="fa-solid fa-user text-gray-100" style="display:none;"></i>';
+        return '<img src="' . $url . '" alt="' . htmlspecialchars($fullname) . '"' . $classes_attr . ' />';
     }
 
     /**
-     * Check if admin is authenticated via PHP session
+     * Check if admin is authenticated
      */
     if (!isset($_SESSION['admin_authenticated']) || $_SESSION['admin_authenticated'] !== true) {
-        header("Location: admin_login.php");
+        header("Location: /admin/admin_login.php");
         exit();
     }
 
@@ -72,7 +47,7 @@
      * Check if user has admin privileges
      */
     if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
-        header("Location: admin_login.php?error=unauthorized");
+        header("Location: /admin/admin_login.php?error=unauthorized");
         exit();
     }
 
@@ -86,7 +61,7 @@
 
         if ($hours_diff > 24) {
             session_destroy();
-            header("Location: admin_login.php?error=expired");
+            header("Location: /admin/admin_login.php?error=expired");
             exit();
         }
     }
