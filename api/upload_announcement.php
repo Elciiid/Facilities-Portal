@@ -55,24 +55,16 @@ try {
                 // Fallback to local (ephemeral) for demo purposes if storage fails
                 $uploadDir = '../uploads/';
                 if (move_uploaded_file($file['tmp_name'], $uploadDir . $fileName)) {
-                    $imageUrl = 'uploads/' + $fileName;
-                }
-            }
-        }
     } else {
         // Use existing image if provided
-        $imageUrl = $_POST['existingImage'] ?? '';
+        $imageUrl = $_POST['existing_image'] ?? '';
     }
 
-    // 2. Persist Metadata in fcl_announcements or a new table
-    // For simplicity, we'll use a type column to distinguish banner vs carousel
-    $query = "INSERT INTO fcl_announcements (title, message, type, active, updated_at)
-              VALUES (?, ?, 'carousel_image', true, NOW())";
-    
-    // We'll store the image URL in the 'message' field OR we should have a better schema.
-    // Let's use a dedicated table for cleanliness.
+    $enabled = isset($_POST['enabled']) && $_POST['enabled'] == '1';
+
+    // 2. Persist Metadata in fcl_carousel_announcements
     $query = "INSERT INTO fcl_carousel_announcements (id, title, subtitle, image_url, enabled)
-              VALUES (?, ?, ?, ?, true)
+              VALUES (?, ?, ?, ?, ?)
               ON CONFLICT (id) DO UPDATE SET 
                 title = EXCLUDED.title,
                 subtitle = EXCLUDED.subtitle,
@@ -80,7 +72,7 @@ try {
                 enabled = EXCLUDED.enabled";
     
     $stmt = $conn->prepare($query);
-    $stmt->execute([$id, $title, $subtitle, $imageUrl]);
+    $stmt->execute([$id, $title, $subtitle, $imageUrl, $enabled]);
 
     echo json_encode([
         'success' => true, 

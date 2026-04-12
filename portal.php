@@ -948,6 +948,9 @@
     </div>
 
     <script>
+        // State for change detection
+        let lastPortalState = null;
+
         // Master function to load all portal data from Supabase
         async function refreshPortalData(isInitial = false) {
             try {
@@ -1172,6 +1175,13 @@
 
             // Check for updates every 10 seconds (optimized for DB)
             setInterval(() => refreshPortalData(false), 10000);
+
+            // Instant refresh when tab becomes visible again
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    refreshPortalData(false);
+                }
+            });
 
             // Start intro animation
             setTimeout(startIntroAnimation, 500);

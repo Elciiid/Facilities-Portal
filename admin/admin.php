@@ -681,6 +681,8 @@ if (isset($_SESSION['admin_login_time'])) {
             }, 100); // Small delay to ensure DOM is ready
         });
 
+        let currentData = null;
+
         // MASTER DATA LOAD
         async function refreshAdminData() {
             try {
@@ -691,6 +693,8 @@ if (isset($_SESSION['admin_login_time'])) {
                     console.error('Data error:', data.error);
                     return;
                 }
+
+                currentData = data;
 
                 // Populate UI from consolidated data
                 updateAnnouncementsUI(data.announcement);
@@ -770,8 +774,7 @@ if (isset($_SESSION['admin_login_time'])) {
             const data = {
                 active: active,
                 title: document.getElementById('announcement-title').value,
-                message: document.getElementById('announcement-message').value,
-                updated_at: new Date().toISOString()
+                message: document.getElementById('announcement-message').value
             };
 
             try {
@@ -784,19 +787,16 @@ if (isset($_SESSION['admin_login_time'])) {
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    // Reload data to verify it was saved correctly
-                    setTimeout(() => loadAnnouncements(), 500);
+                    refreshAdminData();
                 } else {
                     console.error('Error saving announcement toggle:', result.error);
                     alert('Error toggling announcement: ' + (result.error || 'Unknown error'));
-                    // Reload current data to revert checkbox if save failed
-                    loadAnnouncements();
+                    refreshAdminData();
                 }
             } catch (error) {
                 console.error('Network error toggling announcement:', error);
                 alert('Error toggling announcement: ' + error.message);
-                // Reload current data to revert checkbox if save failed
-                loadAnnouncements();
+                refreshAdminData();
             }
         }
 
@@ -913,17 +913,18 @@ if (isset($_SESSION['admin_login_time'])) {
 
         async function editAnnouncement(id) {
             try {
-                const response = await fetch('../data/left_panel.json');
-                const data = await response.json();
+                if (!currentData || !currentData.carousel_announcements) {
+                    await refreshAdminData();
+                }
 
-                const announcement = data.announcements.find(a => a.id === id);
+                const announcement = currentData.carousel_announcements.find(a => a.id === id);
                 if (!announcement) {
                     alert('Announcement not found');
                     return;
                 }
 
                 document.getElementById('panel-announcement-id').value = announcement.id;
-                document.getElementById('panel-announcement-type').value = announcement.type;
+                document.getElementById('panel-announcement-type').value = announcement.type || 'image';
                 document.getElementById('panel-announcement-title').value = announcement.title;
                 document.getElementById('panel-announcement-subtitle').value = announcement.subtitle || '';
                 document.getElementById('panel-announcement-enabled').checked = announcement.enabled;
@@ -932,13 +933,11 @@ if (isset($_SESSION['admin_login_time'])) {
                 const imageInput = document.getElementById('panel-announcement-image');
                 const imagePreview = document.getElementById('current-image-preview');
 
-                if (announcement.image) {
+                if (announcement.image_url) {
                     imageInput.required = false;
                     imagePreview.style.display = 'block';
-                    const isUploaded = announcement.image.startsWith('announcement_');
-                    const imagePath = isUploaded ? '../uploads/' + announcement.image : '../' + announcement.image;
-                    document.getElementById('current-image-src').src = imagePath;
-                    document.getElementById('existing-image-path').value = announcement.image;
+                    document.getElementById('current-image-src').src = '../' + announcement.image_url;
+                    document.getElementById('existing-image-path').value = announcement.image_url;
                 } else {
                     imageInput.required = true;
                     imagePreview.style.display = 'none';
@@ -947,7 +946,7 @@ if (isset($_SESSION['admin_login_time'])) {
 
                 document.getElementById('announcementModalTitle').textContent = 'Edit Announcement';
                 document.getElementById('announcementModal').classList.remove('hidden');
-                toggleImageFields(announcement.type);
+                toggleImageFields(announcement.type || 'image');
 
             } catch (error) {
                 console.error('Error loading announcement:', error);
@@ -973,33 +972,16 @@ if (isset($_SESSION['admin_login_time'])) {
         }
 
         // Apps
-        async function loadApps() {
+        function updateAppsUI(apps) {
             try {
-                const url = '../data/apps.json?v=' + Date.now();
-                console.log('Loading apps from:', url);
-
-                // Add cache-busting parameter to ensure fresh data
-                const response = await fetch(url, {
-                    cache: 'no-cache',
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status} url: ${response.url}`);
-                }
-
-                const apps = await response.json();
-
                 const appsList = document.getElementById('apps-list');
                 const folderDatalist = document.getElementById('folder-datalist');
                 appsList.innerHTML = '';
                 folderDatalist.innerHTML = '';
 
-                // Populate Folder Datalist
-                const folders = [...new Set(apps.map(app => app.folder).filter(f => f))];
-                folders.sort().forEach(folder => {
+                // Populate Folder Datalist (from apps that have folders)
+                const folderNames = [...new Set(apps.map(app => app.folder_name).filter(f => f))];
+                folderNames.sort().forEach(folder => {
                     const option = document.createElement('option');
                     option.value = folder;
                     folderDatalist.appendChild(option);
@@ -1015,7 +997,7 @@ if (isset($_SESSION['admin_login_time'])) {
                             </div>
                             <div class="min-w-0 flex-1">
                                 <h4 class="font-bold text-gray-900 text-sm sm:text-base truncate">${app.title}</h4>
-                                <p class="text-xs text-pink-500 font-semibold uppercase tracking-wider mb-1">${app.folder ? app.folder : 'No Folder'}</p>
+                                <p class="text-xs text-pink-500 font-semibold uppercase tracking-wider mb-1">${app.folder_name ? app.folder_name : 'No Folder'}</p>
                                 <p class="text-xs text-gray-500 truncate">${app.link}</p>
                             </div>
                         </div>
@@ -1037,8 +1019,50 @@ if (isset($_SESSION['admin_login_time'])) {
                     appsList.appendChild(appEl);
                 });
             } catch (error) {
-                console.error('Error loading apps:', error);
+                console.error('Error updating apps UI:', error);
             }
+        }
+
+        function updateFoldersUI(folders, apps) {
+            const foldersList = document.getElementById('folders-list');
+            foldersList.innerHTML = '';
+
+            if (!folders || folders.length === 0) {
+                foldersList.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No folders found.</p>';
+                return;
+            }
+
+            folders.sort((a, b) => a.order - b.order).forEach(folder => {
+                const count = apps.filter(a => a.folder_name === folder.name).length;
+                const folderEl = document.createElement('div');
+                folderEl.className = 'flex items-center justify-between p-6 bg-gray-50 rounded-xl';
+                folderEl.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-pink-100 text-pink-600 rounded-3xl flex items-center justify-center">
+                            <i class="fa-solid fa-folder text-2xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900">${folder.name}</h4>
+                            <p class="text-xs text-gray-500 uppercase font-semibold tracking-wider">${count} Apps Connected</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" ${folder.enabled ? 'checked' : ''} onchange="toggleFolderEnabled('${folder.name}', this.checked)" class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                            <span class="ml-2 text-sm">Enabled</span>
+                        </label>
+                        <div class="flex gap-2">
+                            <button onclick="editFolder('${folder.name}')" class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm">
+                                <i class="fa-solid fa-edit mr-1"></i>Edit
+                            </button>
+                            <button onclick="deleteFolder('${folder.name}')" class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm">
+                                <i class="fa-solid fa-trash mr-1"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+                foldersList.appendChild(folderEl);
+            });
         }
 
         function addNewApp() {
@@ -1117,6 +1141,37 @@ if (isset($_SESSION['admin_login_time'])) {
             return 'app_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
+        // Form submission for top banner announcement
+        document.getElementById('announcementForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const data = {
+                active: document.getElementById('announcement-active').checked,
+                title: document.getElementById('announcement-title').value,
+                message: document.getElementById('announcement-message').value
+            };
+
+            try {
+                const response = await fetch('../api/save_announcement.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    showSuccessModal('Announcement Saved', 'The top banner announcement has been updated.');
+                    refreshAdminData();
+                } else {
+                    alert('Error saving announcement: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error saving announcement');
+            }
+        });
+
         // Form submission for announcements
         document.getElementById('panelAnnouncementForm').addEventListener('submit', async function (e) {
             e.preventDefault();
@@ -1145,7 +1200,7 @@ if (isset($_SESSION['admin_login_time'])) {
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    alert('Announcement saved successfully!');
+                    showSuccessModal('Announcement Saved', 'The announcement has been successfully saved to the portal.');
                     closeAnnouncementModal();
                     loadLeftPanelData();
                 } else {
@@ -1163,20 +1218,42 @@ if (isset($_SESSION['admin_login_time'])) {
                 const response = await fetch('../api/toggle_announcement.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: id, enabled: enabled })
+                    body: JSON.stringify({ id: id, enabled: enabled, target: 'carousel' })
                 });
 
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    // Refresh the left panel data to show changes
-                    loadLeftPanelData();
+                    refreshAdminData();
                 } else {
                     alert('Error toggling announcement: ' + (result.error || 'Unknown error'));
+                    refreshAdminData();
                 }
             } catch (error) {
                 console.error('Error:', error);
                 alert('Error toggling announcement');
+                refreshAdminData();
+            }
+        }
+
+        async function toggleFolderEnabled(name, enabled) {
+            try {
+                const response = await fetch('../api/save_folder.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, enabled: enabled, isToggle: true })
+                });
+
+                if (response.ok) {
+                    refreshAdminData();
+                } else {
+                    alert('Error toggling folder');
+                    refreshAdminData();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error toggling folder');
+                refreshAdminData();
             }
         }
 
@@ -1215,10 +1292,11 @@ if (isset($_SESSION['admin_login_time'])) {
         // Placeholder functions for edit/delete (to be implemented)
         async function editApp(id) {
             try {
-                const response = await fetch('../data/apps.json?v=' + Date.now());
-                const apps = await response.json();
+                if (!currentData || !currentData.apps) {
+                    await refreshAdminData();
+                }
 
-                const app = apps.find(a => a.id === id);
+                const app = currentData.apps.find(a => a.id === id);
                 if (!app) {
                     alert('App not found');
                     return;
@@ -1227,11 +1305,12 @@ if (isset($_SESSION['admin_login_time'])) {
                 // Populate the modal with existing data
                 document.getElementById('appModalTitle').textContent = 'Edit App';
                 document.getElementById('app-title').value = app.title;
-                document.getElementById('app-folder').value = app.folder || '';
+                document.getElementById('app-folder').value = app.folder_name || '';
                 document.getElementById('app-description').value = app.description || '';
                 document.getElementById('app-icon').value = app.icon;
                 document.getElementById('app-color').value = app.color;
                 document.getElementById('app-link').value = app.link;
+                document.getElementById('app-enabled').checked = !!app.enabled;
 
                 // Store the app ID for updating
                 document.getElementById('appForm').setAttribute('data-edit-id', id);
@@ -1357,283 +1436,29 @@ if (isset($_SESSION['admin_login_time'])) {
         </div>
     </div>
 
-
-
     <script>
-        // Folders Management
-
-        async function loadFolders() {
-            try {
-                const response = await fetch('../api/get_admin_data.php');
-                const data = await response.json();
-                updateFoldersUI(data.folders, data.apps);
-            } catch (e) { console.error(e); }
-        }
-
-            } catch (e) { console.error(e); }
-        }
-
-        function strCompare(a, b) {
-            return (a || '').toLowerCase() === (b || '').toLowerCase();
-        }
-
-        function addNewFolder() {
-            document.getElementById('folderModalTitle').textContent = 'Create Folder';
-            document.getElementById('folder-name').value = '';
-            document.getElementById('folder-original-name').value = '';
-            document.getElementById('folder-enabled').checked = true;
-            document.getElementById('folder-apps-section').classList.add('hidden'); // Hide for new folders (must save first)
-            document.getElementById('folderModal').classList.remove('hidden');
-        }
-
-        async function editFolder(name) {
-            try {
-                // Fetch current state
-                const response = await fetch('../data/folders.json?v=' + Date.now());
-                const folders = await response.json();
-                const folder = folders.find(f => strCompare(f.name, name)) || { name: name, enabled: true };
-
-                document.getElementById('folderModalTitle').textContent = 'Edit Folder';
-                document.getElementById('folder-name').value = folder.name;
-                document.getElementById('folder-original-name').value = folder.name;
-                document.getElementById('folder-enabled').checked = folder.enabled;
-
-                // Show Apps Section
-                document.getElementById('folder-apps-section').classList.remove('hidden');
-
-                // Load Apps for this folder
-                renderFolderApps(folder.name);
-                setupFolderAppSearch();
-
-                document.getElementById('folderModal').classList.remove('hidden');
-            } catch (e) {
-                console.error(e);
-                // Fallback
-                document.getElementById('folderModalTitle').textContent = 'Edit Folder';
-                document.getElementById('folder-name').value = name;
-                document.getElementById('folder-original-name').value = name;
-                document.getElementById('folder-enabled').checked = true;
-                document.getElementById('folder-apps-section').classList.remove('hidden');
-                renderFolderApps(name);
-                setupFolderAppSearch();
-                document.getElementById('folderModal').classList.remove('hidden');
-            }
-        }
-
-        async function renderFolderApps(folderName) {
-            const list = document.getElementById('folder-apps-list');
-            try {
-                const response = await fetch('../data/apps.json?v=' + Date.now());
-                const apps = await response.json();
-                const folderApps = apps.filter(a => strCompare(a.folder, folderName));
-
-                if (folderApps.length === 0) {
-                    list.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">No apps in this folder.</p>';
-                    return;
-                }
-
-                list.innerHTML = '';
-                folderApps.forEach(app => {
-                    const el = document.createElement('div');
-                    el.className = 'flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100';
-                    el.innerHTML = `
-                        <div class="flex items-center gap-2 overflow-hidden">
-                            <div class="w-6 h-6 bg-${app.color}-100 text-${app.color}-600 rounded flex items-center justify-center text-xs">
-                                <i class="fa-solid ${app.icon}"></i>
-                            </div>
-                            <span class="text-sm font-medium text-gray-700 truncate">${app.title}</span>
-                        </div>
-                        <button type="button" onclick="removeAppFromFolder('${app.id}', '${folderName}')" class="text-red-400 hover:text-red-600 px-2" title="Remove from folder">
-                             <i class="fa-solid fa-times"></i>
-                        </button>
-                    `;
-                    list.appendChild(el);
-                });
-            } catch (e) {
-                console.error(e);
-                list.innerHTML = '<p class="text-xs text-red-400 text-center">Error loading apps.</p>';
-            }
-        }
-
-        async function removeAppFromFolder(appId, currentFolderName) {
-            if (!confirm('Remove this app from the folder?')) return;
-            await updateAppFolder(appId, '');
-            renderFolderApps(currentFolderName);
-            loadFolders(); // Refresh counts
-            loadApps(); // Refresh main list
-        }
-
-        async function addAppToFolder(appId, folderName) {
-            await updateAppFolder(appId, folderName);
-            document.getElementById('folder-add-app-search').value = '';
-            document.getElementById('folder-app-search-results').classList.add('hidden');
-            renderFolderApps(folderName);
-            loadFolders(); // Refresh counts
-            loadApps(); // Refresh main list
-        }
-
-        async function updateAppFolder(appId, newFolderName) {
-            try {
-                // Fetch current app state
-                const response = await fetch('../data/apps.json?v=' + Date.now());
-                const apps = await response.json();
-                const app = apps.find(a => a.id === appId);
-
-                if (!app) return;
-
-                app.folder = newFolderName;
-                // Add isEdit flag for save_app.php
-                app.isEdit = true;
-
-                await fetch('../api/save_app.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(app)
-                });
-            } catch (e) {
-                console.error(e);
-                alert('Failed to update app folder.');
-            }
-        }
-
-        function setupFolderAppSearch() {
-            const input = document.getElementById('folder-add-app-search');
-            const results = document.getElementById('folder-app-search-results');
-
-            input.oninput = async function () {
-                const query = this.value.toLowerCase();
-                if (query.length < 1) {
-                    results.classList.add('hidden');
-                    return;
-                }
-
-                const response = await fetch('../api/get_admin_data.php');
-                const data = await response.json();
-                const apps = data.apps;
-
-                // Filter apps that match query AND are not already in this folder
-                const currentFolderName = document.getElementById('folder-original-name').value;
-                const matches = apps.filter(a =>
-                    a.title.toLowerCase().includes(query) &&
-                    !strCompare(a.folder_name, currentFolderName)
-                );
-
-                results.innerHTML = '';
-                if (matches.length > 0) {
-                    matches.slice(0, 5).forEach(app => { // Limit to 5
-                        const div = document.createElement('div');
-                        div.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 flex items-center gap-2';
-                        div.innerHTML = `
-                            <div class="w-6 h-6 bg-${app.color}-100 text-${app.color}-600 rounded flex items-center justify-center text-xs">
-                                <i class="fa-solid ${app.icon}"></i>
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-sm font-medium text-gray-800">${app.title}</p>
-                                <p class="text-xs text-gray-400">${app.folder ? 'In: ' + app.folder : 'No Folder'}</p>
-                            </div>
-                            <i class="fa-solid fa-plus text-pink-500"></i>
-                        `;
-                        div.onclick = () => addAppToFolder(app.id, currentFolderName);
-                        results.appendChild(div);
-                    });
-                    results.classList.remove('hidden');
+        // Tab Switching Logic
+        function showTab(tabId) {
+            // Update Tab Buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                const btnTabId = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                if (btnTabId === tabId) {
+                    btn.classList.add('bg-pink-50', 'text-pink-600', 'border-pink-200');
+                    btn.classList.remove('text-gray-500', 'hover:bg-gray-50', 'border-transparent');
                 } else {
-                    results.innerHTML = '<div class="p-3 text-xs text-gray-400 text-center">No matching apps found.</div>';
-                    results.classList.remove('hidden');
-                }
-            };
-
-            // Hide on click outside
-            document.addEventListener('click', function (e) {
-                if (!input.contains(e.target) && !results.contains(e.target)) {
-                    results.classList.add('hidden');
+                    btn.classList.remove('bg-pink-50', 'text-pink-600', 'border-pink-200');
+                    btn.classList.add('text-gray-500', 'hover:bg-gray-50', 'border-transparent');
                 }
             });
-        }
-        function closeFolderModal() {
-            document.getElementById('folderModal').classList.add('hidden');
-            document.getElementById('folder-app-search-results').classList.add('hidden'); // Hide search results
-            document.getElementById('folder-add-app-search').value = ''; // Clear search input
-        }
 
-        document.getElementById('folderForm').addEventListener('submit', async function (e) {
-            e.preventDefault();
-            const newName = document.getElementById('folder-name').value;
-            const originalName = document.getElementById('folder-original-name').value;
-            const enabled = document.getElementById('folder-enabled').checked;
-
-            const endpoint = originalName && originalName !== newName ? '../api/rename_folder.php' : '../api/save_folder.php';
-
-            const payload = {
-                name: newName,
-                enabled: enabled
-            };
-
-            if (originalName && originalName !== newName) {
-                payload.original_name = originalName;
-            }
-
-            try {
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    closeFolderModal();
-                    loadFolders();
-                    loadApps(); // Apps might have been updated (renamed folder)
-                    showSuccessModal(originalName ? 'Folder Updated' : 'Folder Created', 'Changes saved successfully.');
+            // Update Content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                if (content.id === `content-${tabId}`) {
+                    content.classList.remove('hidden');
                 } else {
-                    alert('Error saving folder');
+                    content.classList.add('hidden');
                 }
-            } catch (e) {
-                console.error(e);
-                alert('Error saving folder');
-            }
-        });
-
-        async function toggleFolderEnabled(name, enabled) {
-            try {
-                await fetch('../api/save_folder.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, enabled })
-                });
-                // No need to reload, visual state reflects change
-            } catch (e) {
-                console.error(e);
-                alert('Error updating folder state');
-                loadFolders(); // Revert
-            }
-        }
-
-        async function deleteFolder(name) {
-            showConfirmationModal(
-                'Delete Folder',
-                `Are you sure you want to delete folder "${name}"? This will remove the folder grouping from all apps inside it.`,
-                async () => {
-                    try {
-                        const response = await fetch('../api/delete_folder.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ name })
-                        });
-
-                        if (response.ok) {
-                            loadFolders();
-                            loadApps(); // Apps will update to "No Folder"
-                            showSuccessModal('Folder Deleted', 'Folder and app associations removed.');
-                        } else {
-                            alert('Error deleting folder');
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        alert('Error deleting folder');
-                    }
-                }
-            );
+            });
         }
 
         // Confirmation modal functions
@@ -1669,6 +1494,10 @@ if (isset($_SESSION['admin_login_time'])) {
             document.getElementById('successModal').classList.add('hidden');
         }
 
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshAdminData();
+        });
     </script>
 </body>
 

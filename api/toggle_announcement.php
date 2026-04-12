@@ -19,10 +19,17 @@ if (!$input || empty($input['id'])) {
 }
 
 try {
-    $stmt = $conn->prepare("UPDATE fcl_announcements SET active = ? WHERE id = ?");
-    $stmt->execute([(bool)($input['active'] ?? false), $input['id']]);
+    $id = $input['id'];
+    $table = ($input['target'] === 'carousel' || strpos($id, 'announcement_') === 0) 
+             ? 'fcl_carousel_announcements' 
+             : 'fcl_announcements';
+             
+    $column = ($table === 'fcl_announcements') ? 'active' : 'enabled';
 
-    echo json_encode(['success' => true, 'message' => 'Announcement visibility toggled in database']);
+    $stmt = $conn->prepare("UPDATE $table SET $column = ? WHERE id = ?");
+    $stmt->execute([(bool)($input['enabled'] ?? $input['active'] ?? false), $id]);
+
+    echo json_encode(['success' => true, 'message' => "Announcement visibility toggled in $table"]);
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
