@@ -19,8 +19,14 @@ if (!$input || empty($input['id'])) {
 }
 
 try {
-    $stmt = $conn->prepare("DELETE FROM fcl_announcements WHERE id = ?");
+    $stmt = $conn->prepare("DELETE FROM fcl_carousel_announcements WHERE id = ?");
     $stmt->execute([$input['id']]);
+
+    if ($stmt->rowCount() === 0) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Announcement not found']);
+        exit;
+    }
 
     echo json_encode(['success' => true, 'message' => 'Announcement deleted from database']);
 } catch (PDOException $e) {

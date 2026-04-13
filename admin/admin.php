@@ -934,7 +934,10 @@ if (isset($_SESSION['admin_login_time'])) {
                 if (announcement.image_url) {
                     imageInput.required = false;
                     imagePreview.style.display = 'block';
-                    document.getElementById('current-image-src').src = '../' + announcement.image_url;
+                    const imgSrc = /^https?:\/\//i.test(announcement.image_url)
+                        ? announcement.image_url
+                        : '../' + announcement.image_url;
+                    document.getElementById('current-image-src').src = imgSrc;
                     document.getElementById('existing-image-path').value = announcement.image_url;
                 } else {
                     imageInput.required = true;
