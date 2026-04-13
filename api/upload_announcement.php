@@ -29,6 +29,8 @@ try {
         $fileName = $id . '_' . basename($file['name']);
         
         $uploadSuccess = false;
+        $supabaseError = '';
+        $localError = '';
 
         // 1. Try Uploading to Supabase Storage
         if ($supabaseUrl && $serviceRoleKey) {
@@ -43,31 +45,41 @@ try {
                 "x-upsert: true"
             ]);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
             
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
             curl_close($ch);
 
             if ($httpCode >= 200 && $httpCode < 300) {
                 $imageUrl = "$supabaseUrl/storage/v1/object/public/$bucketName/$fileName";
                 $uploadSuccess = true;
+            } else {
+                $supabaseError = "Supabase HTTP $httpCode: " . ($curlError ?: $response);
             }
+        } else {
+            $supabaseError = 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured in environment.';
         }
 
         // 2. Fallback to local storage if Supabase failed or is not configured
         if (!$uploadSuccess) {
-            $uploadDir = '../uploads/';
+            $uploadDir = __DIR__ . '/../uploads/';
             if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
+                @mkdir($uploadDir, 0755, true);
             }
             if (move_uploaded_file($file['tmp_name'], $uploadDir . $fileName)) {
                 $imageUrl = 'uploads/' . $fileName;
                 $uploadSuccess = true;
+            } else {
+                $localError = 'move_uploaded_file() failed (filesystem may be read-only on Vercel).';
             }
         }
 
         if (!$uploadSuccess) {
-            throw new Exception("Failed to upload image to both Supabase and local storage.");
+            throw new Exception(
+                "Upload failed. Supabase: [$supabaseError] | Local: [$localError]"
+            );
         }
     }
 
