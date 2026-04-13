@@ -49,7 +49,7 @@ try {
             curl_close($ch);
 
             if ($httpCode >= 200 && $httpCode < 300) {
-                $imageUrl = "storage/v1/object/public/$bucketName/$fileName";
+                $imageUrl = "$supabaseUrl/storage/v1/object/public/$bucketName/$fileName";
                 $uploadSuccess = true;
             }
         }
