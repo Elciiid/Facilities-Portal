@@ -25,7 +25,7 @@ try {
     if ($isToggle) {
         $stmt = $conn->prepare("UPDATE fcl_folders SET enabled = ? WHERE name = ?");
         $stmt->execute([
-            isset($input['enabled']) ? (bool)$input['enabled'] : false,
+            isset($input['enabled']) ? (int)(bool)$input['enabled'] : 0,
             $input['name']
         ]);
     } else {
@@ -46,7 +46,7 @@ try {
         $stmt = $conn->prepare($query);
         $stmt->execute([
             trim($input['name']),
-            isset($input['enabled']) ? (bool)$input['enabled'] : true,
+            isset($input['enabled']) ? (int)(bool)$input['enabled'] : 1,
             $order
         ]);
     }

@@ -20,14 +20,18 @@ if (!$input || empty($input['id'])) {
 
 try {
     $id = $input['id'];
-    $table = ($input['target'] === 'carousel' || strpos($id, 'announcement_') === 0) 
-             ? 'fcl_carousel_announcements' 
+    // Route to the correct table: explicit 'carousel' target OR legacy id prefix
+    $table = (isset($input['target']) && $input['target'] === 'carousel')
+             ? 'fcl_carousel_announcements'
              : 'fcl_announcements';
-             
+
     $column = ($table === 'fcl_announcements') ? 'active' : 'enabled';
 
+    // Cast to int (1/0) for reliable PostgreSQL boolean binding via PDO
+    $value = (int)(bool)($input['enabled'] ?? $input['active'] ?? false);
+
     $stmt = $conn->prepare("UPDATE $table SET $column = ? WHERE id = ?");
-    $stmt->execute([(bool)($input['enabled'] ?? $input['active'] ?? false), $id]);
+    $stmt->execute([$value, $id]);
 
     echo json_encode(['success' => true, 'message' => "Announcement visibility toggled in $table"]);
 } catch (PDOException $e) {

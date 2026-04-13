@@ -24,22 +24,32 @@ if (!$input) {
 }
 
 try {
-    // For now, we only have one announcement (top banner)
-    // We'll update the first one or create it if missing
-    $query = "INSERT INTO fcl_announcements (id, active, title, message, updated_at)
-              VALUES (1, ?, ?, ?, NOW())
-              ON CONFLICT (id) DO UPDATE SET 
-                active = EXCLUDED.active,
-                title = EXCLUDED.title,
-                message = EXCLUDED.message,
-                updated_at = NOW()";
-    
-    $stmt = $conn->prepare($query);
-    $stmt->execute([
-        $input['active'] ?? false,
-        trim($input['title'] ?? ''),
-        trim($input['message'] ?? '')
-    ]);
+    $active = (int)(bool)($input['active'] ?? false);
+    $isToggleOnly = !isset($input['title']) && !isset($input['message']);
+
+    if ($isToggleOnly) {
+        // Toggle-only: only update the active flag, preserve existing title/message
+        $stmt = $conn->prepare(
+            "UPDATE fcl_announcements SET active = ?, updated_at = NOW() WHERE id = 1"
+        );
+        $stmt->execute([$active]);
+    } else {
+        // Full save: upsert the announcement row
+        $query = "INSERT INTO fcl_announcements (id, active, title, message, updated_at)
+                  VALUES (1, ?, ?, ?, NOW())
+                  ON CONFLICT (id) DO UPDATE SET 
+                    active = EXCLUDED.active,
+                    title = EXCLUDED.title,
+                    message = EXCLUDED.message,
+                    updated_at = NOW()";
+
+        $stmt = $conn->prepare($query);
+        $stmt->execute([
+            $active,
+            trim($input['title'] ?? ''),
+            trim($input['message'] ?? '')
+        ]);
+    }
 
     echo json_encode(['success' => true, 'message' => 'Announcement saved successfully to database']);
 } catch (PDOException $e) {

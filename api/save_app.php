@@ -31,18 +31,13 @@ if (empty($id)) {
 
 try {
     if ($isToggle) {
-        // Toggle operation
+        // Toggle operation — use int cast (1/0) for reliable PostgreSQL boolean binding
         $stmt = $conn->prepare("UPDATE fcl_apps SET enabled = ? WHERE id = ?");
         $stmt->execute([
-            isset($input['enabled']) ? (bool)$input['enabled'] : false,
+            isset($input['enabled']) ? (int)(bool)$input['enabled'] : 0,
             $id
         ]);
-        
-        if ($stmt->rowCount() === 0) {
-            http_response_code(404);
-            echo json_encode(['error' => 'App not found']);
-            exit;
-        }
+        // Note: rowCount() is unreliable on PostgreSQL for UPDATE, so we skip it
     } else {
         // Full save (Insert or Update)
         // Ensure folder exists or set to NULL

@@ -663,9 +663,9 @@
                 </div>
             </div>
 
-            <nav class="space-y-4 flex-1 overflow-y-auto custom-scrollbar pb-6">
+            <nav class="flex-1 flex flex-col gap-4 pb-4 min-h-0">
                 <a href="admin/admin_login.php" target="_blank"
-                    class="group flex items-center gap-4 px-7 py-4 rounded-[2rem] bg-white/90 backdrop-blur-sm border border-pink-400/30 text-pink-600 font-bold text-sm relative overflow-hidden border-trace">
+                    class="group flex items-center gap-4 px-7 py-4 rounded-[2rem] bg-white/90 backdrop-blur-sm border border-pink-400/30 text-pink-600 font-bold text-sm relative overflow-hidden border-trace shrink-0">
                     <!-- Animated background effect -->
                     <div
                         class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out">
@@ -686,14 +686,9 @@
                         style="animation-delay: 0.5s;"></div>
                 </a>
 
-                <!-- Dynamic announcements will be loaded here -->
-                <div id="left-panel-announcements" class="space-y-4">
-                    <!-- Announcements loaded from left_panel.json -->
-                </div>
-
-                <!-- Dynamic logos will be loaded here -->
-                <div id="left-panel-logos" class="flex justify-center pt-4">
-                    <!-- Logos loaded from left_panel.json -->
+                <!-- Announcement carousel — fills all remaining height -->
+                <div id="left-panel-announcements" class="flex-1 relative min-h-0 rounded-[2rem] overflow-hidden">
+                    <!-- Populated by renderLeftPanel() -->
                 </div>
             </nav>
         </div>
@@ -954,7 +949,7 @@
         // Master function to load all portal data from Supabase
         async function refreshPortalData(isInitial = false) {
             try {
-                const response = await fetch('/api/get_portal_data.php?v=' + Date.now(), {
+                const response = await fetch('api/get_portal_data.php?v=' + Date.now(), {
                     cache: 'no-cache',
                     headers: { 'Cache-Control': 'no-cache' }
                 });
@@ -1011,9 +1006,18 @@
 
         function renderLeftPanel(data) {
             // 1. Weather Toggle
-            const weatherWidget = document.getElementById('weather-widget');
-            if (weatherWidget) {
-                weatherWidget.style.display = data.weather_enabled ? 'flex' : 'none';
+            const weatherSection = document.getElementById('weather-section');
+            if (weatherSection) {
+                if (data.weather_enabled) {
+                    weatherSection.style.opacity = '1';
+                    weatherSection.style.pointerEvents = 'auto';
+                    weatherSection.style.transform = 'scale(1)';
+                    if (typeof fetchMabalacatWeather === 'function') fetchMabalacatWeather();
+                } else {
+                    weatherSection.style.opacity = '0';
+                    weatherSection.style.pointerEvents = 'none';
+                    weatherSection.style.transform = 'scale(0.95)';
+                }
             }
 
             // 2. Background Toggle
@@ -1026,48 +1030,122 @@
                 if (canvas) canvas.style.opacity = '0';
             }
 
-            // 3. Render Carousel
-            const carousel = document.getElementById('announcement-carousel');
-            if (!carousel) return;
-            
-            if (!data.announcements || data.announcements.length === 0) {
-                carousel.innerHTML = '<div class="text-center py-10 text-gray-400 italic">No announcements today.</div>';
+            // 3. Render Left Panel Announcements — full-height carousel
+            const container = document.getElementById('left-panel-announcements');
+            if (!container) return;
+
+            const announcements = data.announcements;
+            if (!announcements || announcements.length === 0) {
+                container.innerHTML = '';
                 return;
             }
 
-            carousel.innerHTML = data.announcements.map((ann, idx) => `
-                <div class="carousel-item ${idx === 0 ? 'active' : ''} h-full">
-                    <div class="relative h-full w-full overflow-hidden rounded-[2.5rem]">
-                        <img src="${ann.image_url}" class="w-full h-full object-cover" 
-                             onerror="this.src='assets/placeholder.jpg'">
-                        <div class="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white">
-                            <h4 class="text-xl font-black mb-1 truncate">${ann.title}</h4>
-                            <p class="text-xs font-bold uppercase tracking-widest text-pink-400 mb-2">${ann.subtitle || ''}</p>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-            // Restart carousel if needed (assuming bootstrap or simple interval)
-            if (data.announcements.length > 1) {
-                initCarouselSystem();
+            function resolveImageUrl(url) {
+                if (!url) return null;
+                if (url.startsWith('http') || url.startsWith('//')) return url;
+                return url; // local path relative to portal root
             }
+
+            // Build slide HTML — absolute-positioned full-fill slides
+            const slidesHtml = announcements.map((ann, idx) => {
+                const imgUrl = resolveImageUrl(ann.image_url);
+                const hasImg = !!imgUrl;
+                return `
+                <div class="announcement-card absolute inset-0 transition-opacity duration-700"
+                     style="opacity:${idx === 0 ? '1' : '0'}; pointer-events:${idx === 0 ? 'auto' : 'none'};" data-ann-idx="${idx}">
+                    ${hasImg ? `
+                        <img src="${imgUrl}" class="w-full h-full object-cover"
+                             onerror="this.style.display='none'" onclick="openImageModal('${imgUrl}')" style="cursor:pointer">
+                    ` : `
+                        <div class="w-full h-full bg-gradient-to-br from-pink-50 to-slate-100 flex flex-col items-center justify-center p-6 text-center">
+                            <i class="fa-solid fa-bullhorn text-3xl text-pink-400 mb-4"></i>
+                            <h4 class="font-black text-gray-900 text-base leading-snug">${ann.title}</h4>
+                            ${ann.subtitle ? `<p class="text-xs text-gray-500 mt-2">${ann.subtitle}</p>` : ''}
+                        </div>
+                    `}
+                    <!-- Caption overlay for image slides -->
+                    ${hasImg ? `
+                    <div class="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white pointer-events-none">
+                        <h4 class="text-sm font-black truncate">${ann.title}</h4>
+                        ${ann.subtitle ? `<p class="text-[10px] uppercase tracking-widest text-pink-300 mt-0.5">${ann.subtitle}</p>` : ''}
+                    </div>` : ''}
+                </div>`;
+            }).join('');
+
+            // Build nav controls (arrows + dots) — only if >1 slide
+            const multiSlide = announcements.length > 1;
+            const dotsHtml = multiSlide ? announcements.map((_, i) => `
+                <button class="announcement-dot w-2 h-2 rounded-full transition-all duration-300 ${
+                    i === 0 ? 'bg-white scale-125' : 'bg-white/40'
+                }" onclick="goToAnnouncement(${i})" aria-label="Slide ${i+1}"></button>
+            `).join('') : '';
+
+            container.innerHTML = `
+                ${slidesHtml}
+                ${multiSlide ? `
+                <!-- Prev / Next arrows -->
+                <button onclick="prevAnnouncement()"
+                    class="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-all backdrop-blur-sm">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <button onclick="nextAnnouncement()"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-all backdrop-blur-sm">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+                <!-- Dot indicators -->
+                <div class="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-20">
+                    ${dotsHtml}
+                </div>` : ''}
+            `;
+
+            initCarouselSystem(announcements.length);
         }
 
         let carouselInterval = null;
-        function initCarouselSystem() {
-            if (carouselInterval) clearInterval(carouselInterval);
-            carouselInterval = setInterval(() => {
-                const items = document.querySelectorAll('#announcement-carousel .carousel-item');
-                if (items.length <= 1) return;
-                
-                let activeIdx = Array.from(items).findIndex(i => i.classList.contains('active'));
-                items[activeIdx].classList.remove('active');
-                
-                let nextIdx = (activeIdx + 1) % items.length;
-                items[nextIdx].classList.add('active');
-            }, 5000);
+        let _carouselCount = 0;
+        let _carouselCurrent = 0;
+
+        function goToAnnouncement(idx) {
+            const cards = document.querySelectorAll('#left-panel-announcements .announcement-card');
+            const dots  = document.querySelectorAll('#left-panel-announcements .announcement-dot');
+            if (!cards.length) return;
+            cards.forEach((c, i) => {
+                c.style.opacity = i === idx ? '1' : '0';
+                c.style.pointerEvents = i === idx ? 'auto' : 'none';
+            });
+            dots.forEach((d, i) => {
+                d.classList.toggle('bg-white', i === idx);
+                d.classList.toggle('scale-125', i === idx);
+                d.classList.toggle('bg-white/40', i !== idx);
+                d.classList.remove(i === idx ? 'bg-white/40' : 'bg-white');
+            });
+            _carouselCurrent = idx;
         }
+
+        function nextAnnouncement() {
+            goToAnnouncement((_carouselCurrent + 1) % _carouselCount);
+            resetCarouselTimer();
+        }
+
+        function prevAnnouncement() {
+            goToAnnouncement((_carouselCurrent - 1 + _carouselCount) % _carouselCount);
+            resetCarouselTimer();
+        }
+
+        function resetCarouselTimer() {
+            if (carouselInterval) clearInterval(carouselInterval);
+            carouselInterval = setInterval(() => nextAnnouncement(), 5000);
+        }
+
+        function initCarouselSystem(count) {
+            if (carouselInterval) clearInterval(carouselInterval);
+            _carouselCount = count;
+            _carouselCurrent = 0;
+            if (count > 1) {
+                carouselInterval = setInterval(() => nextAnnouncement(), 5000);
+            }
+        }
+
 
         function renderMainGrid(apps, folders) {
             const grid = document.getElementById('cardGrid');
@@ -1168,34 +1246,7 @@
             document.getElementById('folderOverlay').classList.remove('active');
         }
 
-        function renderLeftPanel(data) {
-            // Handle weather section
-            const weatherSection = document.getElementById('weather-section');
-            if (data.weather_enabled) {
-                weatherSection.style.opacity = '1';
-                weatherSection.style.pointerEvents = 'auto';
-                weatherSection.style.transform = 'scale(1)';
-                if (typeof fetchMabalacatWeather === 'function') fetchMabalacatWeather();
-            } else {
-                weatherSection.style.opacity = '0';
-                weatherSection.style.pointerEvents = 'none';
-                weatherSection.style.transform = 'scale(0.95)';
-            }
 
-            // Handle 2D Background
-            const bgCanvas = document.getElementById('animationCanvas');
-            if (data.background_enabled !== false) {
-                if (typeof startInfiniteBackground === 'function') startInfiniteBackground();
-                if (bgCanvas) bgCanvas.style.opacity = '1';
-            } else {
-                if (bgCanvas) bgCanvas.style.opacity = '0';
-            }
-            
-            // Note: Panel announcements/logos logic can be added here if migrated to DB later
-        }
-
-        // Global state for change detection
-        let lastPortalState = null;
 
         // Fullscreen introduction animation
         function startIntroAnimation() {
@@ -1205,7 +1256,7 @@
 
             if (introElement && introContent) {
                 // Initial fade in for the subtitle
-                gsap.to(introSubtitle, { opacity: 1, duration: 1, delay: 0.3 });
+                gsap.to(introSubtitle, { opacity: 1, duration: 0.6, delay: 0.2 });
 
                 // Trigger swipe after delay
                 setTimeout(() => {
@@ -1230,8 +1281,11 @@
                 gsap.to(introTitle, { opacity: 1, y: 0, duration: 1, delay: 0.2 });
             }
 
-            // Load all data immediately while intro plays
-            await refreshPortalData(true);
+            // Start intro animation immediately — runs concurrently with data loading
+            setTimeout(startIntroAnimation, 100);
+
+            // Load all data in the background while intro plays
+            refreshPortalData(true);
 
             // Check for updates every 10 seconds (optimized for DB)
             setInterval(() => refreshPortalData(false), 10000);
@@ -1242,9 +1296,6 @@
                     refreshPortalData(false);
                 }
             });
-
-            // Start intro animation
-            setTimeout(startIntroAnimation, 500);
 
             // KEYBOARD & SIDEBAR UTILITIES
             function closeSidebars() {

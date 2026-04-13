@@ -771,11 +771,9 @@ if (isset($_SESSION['admin_login_time'])) {
 
         async function toggleAnnouncementActive() {
             const active = document.getElementById('announcement-active').checked;
-            const data = {
-                active: active,
-                title: document.getElementById('announcement-title').value,
-                message: document.getElementById('announcement-message').value
-            };
+            // Only send the toggle — do NOT include title/message here, they may be
+            // empty if the page is still loading and would overwrite real DB data.
+            const data = { active: active ? 1 : 0 };
 
             try {
                 const response = await fetch('../api/save_announcement.php', {
